@@ -61,14 +61,14 @@ FragmentOutput SurfaceDataToGbuffer(SurfaceData surfaceData, InputData inputData
     else
         packedSmoothness = surfaceData.smoothness;                     // values between [ 0,  1]
 #else
-    half3 packedNormalWS = inputData.normalWS;                         // values between [-1,  1]
+    half3 packedNormalWS = inputData.normalWS * 0.5 + 0.5;                         // values between [0,  1]
 
     // See SimpleLitInput.hlsl, SampleSpecularSmoothness().
     half packedSmoothness;
     if (lightingMode == kLightingSimpleLit)
-        packedSmoothness = 0.2h * log2(surfaceData.smoothness) - 0.2h - 1.0h; // values between [-1,  1]
+        packedSmoothness = 0.1h * log2(surfaceData.smoothness) - 0.1h; // values between [0,  1]
     else
-        packedSmoothness = surfaceData.smoothness * 2.0h - 1.0h;       // values between [-1,  1]
+        packedSmoothness = surfaceData.smoothness;       // values between [0,  1]
 #endif
 
     uint materialFlags = 0;
@@ -106,7 +106,7 @@ SurfaceData SurfaceDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, half4 gbuffer
     surfaceData.specular = gbuffer1.rgb;
     half smoothness;
 
-#if _GBUFFER_NORMALS_OCT
+#if 1 || _GBUFFER_NORMALS_OCT
     if (lightingMode == kLightingSimpleLit)
         smoothness = exp2(10.0h * gbuffer2.a + 1.0h);
     else
@@ -137,8 +137,8 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
     half3 packedNormalWS = PackFloat2To888(remappedOctNormalWS);
     half packedSmoothness = smoothness;
 #else
-    half3 packedNormalWS = inputData.normalWS;                       // values between [-1,  1]
-    half packedSmoothness = smoothness * 2.0h - 1.0h;
+    half3 packedNormalWS = inputData.normalWS * 0.5 + 0.5;                       // values between [0,  1]
+    half packedSmoothness = smoothness;
 #endif
 
     uint materialFlags = 0;
@@ -180,7 +180,7 @@ BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, half4 gbuffer2)
     half3 specular = gbuffer1.rgb;
     half reflectivity = gbuffer1.a;
     half oneMinusReflectivity = 1.0h - reflectivity;
-#if _GBUFFER_NORMALS_OCT
+#if 1 || _GBUFFER_NORMALS_OCT
     half smoothness = gbuffer2.a;
 #else
     half smoothness = gbuffer2.a * 0.5h + 0.5h;
@@ -204,7 +204,7 @@ InputData InputDataFromGbufferAndWorldPosition(half4 gbuffer2, float3 wsPos)
     half2 octNormalWS = remappedOctNormalWS.xy * 2.0h - 1.0h;    // values between [-1, +1]
     inputData.normalWS = UnpackNormalOctQuadEncode(octNormalWS);
 #else
-    inputData.normalWS = normalize(gbuffer2.xyz);  // values between [-1, +1]
+    inputData.normalWS = normalize(gbuffer2.xyz * 2.0 - 1.0);  // values between [-1, +1]
 #endif
 
     inputData.viewDirectionWS = SafeNormalize(GetWorldSpaceViewDir(wsPos.xyz));

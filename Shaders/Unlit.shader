@@ -37,7 +37,7 @@ Shader "Universal Render Pipeline/Unlit"
             Name "Unlit"
 
             HLSLPROGRAM
-            #pragma exclude_renderers gles gles3 glcore
+            // #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
 
             #pragma vertex vert
@@ -116,7 +116,7 @@ Shader "Universal Render Pipeline/Unlit"
             ColorMask 0
 
             HLSLPROGRAM
-            #pragma exclude_renderers gles gles3 glcore
+            // #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
 
             #pragma vertex DepthOnlyVertex
@@ -145,7 +145,7 @@ Shader "Universal Render Pipeline/Unlit"
             Cull Off
 
             HLSLPROGRAM
-            #pragma exclude_renderers gles gles3 glcore
+            // #pragma exclude_renderers gles gles3 glcore
             #pragma target 4.5
 
             #pragma vertex UniversalVertexMeta

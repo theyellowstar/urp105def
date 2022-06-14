@@ -286,7 +286,7 @@ namespace UnityEngine.Rendering.Universal.Internal
         }
 
         // This may return different values depending on what lights are rendered for a given frame.
-        internal bool UseShadowMask { get { return this.MixedLightingSetup == MixedLightingSetup.Subtractive; } }
+        internal bool UseShadowMask { get { return this.MixedLightingSetup != MixedLightingSetup.None; } }
         //
         internal bool UseRenderPass { get; set; }
         //
@@ -512,7 +512,23 @@ namespace UnityEngine.Rendering.Universal.Internal
 
                     // Setup global keywords.
                     CoreUtils.SetKeyword(cmd, ShaderKeywordStrings._GBUFFER_NORMALS_OCT, this.AccurateGbufferNormals);
-                    CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.MixedLightingSubtractive, renderingData.lightData.supportsMixedLighting && this.MixedLightingSetup == MixedLightingSetup.Subtractive);
+
+#if UNITY_EDITOR
+                    // This flag is used to strip mixed lighting shader variants when a player is built.
+                    // All shader variants are available in the editor.
+                    bool supportsMixedLighting = true;
+#else
+                    bool supportsMixedLighting = renderingData.lightData.supportsMixedLighting;
+#endif
+
+                    // Setup global keywords.
+                    CoreUtils.SetKeyword(cmd, ShaderKeywordStrings._GBUFFER_NORMALS_OCT, this.AccurateGbufferNormals);
+                    bool isShadowMask = supportsMixedLighting && this.MixedLightingSetup == MixedLightingSetup.ShadowMask;
+                    bool isShadowMaskAlways = isShadowMask && QualitySettings.shadowmaskMode == ShadowmaskMode.Shadowmask;
+                    bool isSubtractive = supportsMixedLighting && this.MixedLightingSetup == MixedLightingSetup.Subtractive;
+                    CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.LightmapShadowMixing, isSubtractive || isShadowMaskAlways);
+                    CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.ShadowsShadowMask, isShadowMask);
+                    CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.MixedLightingSubtractive, isSubtractive); // Backward compatibility
                 }
 
                 context.ExecuteCommandBuffer(cmd);
@@ -658,18 +674,24 @@ namespace UnityEngine.Rendering.Universal.Internal
                 return;
 
             NativeArray<VisibleLight> visibleLights = renderingData.lightData.visibleLights;
-            for (int lightIndex = 0; lightIndex < renderingData.lightData.visibleLights.Length; ++lightIndex)
+            for (int lightIndex = 0; lightIndex < renderingData.lightData.visibleLights.Length && this.MixedLightingSetup == MixedLightingSetup.None; ++lightIndex)
             {
                 Light light = visibleLights[lightIndex].light;
 
                 // TODO: Add support to shadow mask
                 if (light != null
-                 && light.bakingOutput.mixedLightingMode == MixedLightingMode.Subtractive
                  && light.bakingOutput.lightmapBakeType == LightmapBakeType.Mixed
                  && light.shadows != LightShadows.None)
                 {
-                    this.MixedLightingSetup = MixedLightingSetup.Subtractive;
-                    break;
+                    switch (light.bakingOutput.mixedLightingMode)
+                    {
+                        case MixedLightingMode.Subtractive:
+                            this.MixedLightingSetup = MixedLightingSetup.Subtractive;
+                            break;
+                        case MixedLightingMode.Shadowmask:
+                            this.MixedLightingSetup = MixedLightingSetup.ShadowMask;
+                            break;
+                    }
                 }
             }
             // Once the mixed lighting mode has been discovered, we know how  many MRTs we need for the gbuffer.
@@ -747,6 +769,8 @@ namespace UnityEngine.Rendering.Universal.Internal
             // Disable any global keywords setup in SetupLights().
             CoreUtils.SetKeyword(cmd, ShaderKeywordStrings._GBUFFER_NORMALS_OCT, false);
             CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.MixedLightingSubtractive, false);
+            CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.ShadowsShadowMask, false);
+            CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.LightmapShadowMixing, false);
 
             for (int tilerIndex = 0; tilerIndex < m_Tilers.Length; ++ tilerIndex)
             {
@@ -1027,7 +1051,7 @@ namespace UnityEngine.Rendering.Universal.Internal
                 // This does 2 things:
                 // - baked geometry are skipped (do not receive dynamic lighting)
                 // - non-baked geometry (== non-static geometry) use shadowMask/occlusionProbes to emulate baked shadows influences.
-                if (renderingData.lightData.supportsMixedLighting && this.MixedLightingSetup == MixedLightingSetup.Subtractive)
+                if (renderingData.lightData.supportsMixedLighting && this.MixedLightingSetup != MixedLightingSetup.None)
                     cmd.EnableShaderKeyword(ShaderKeywordStrings._DEFERRED_SUBTRACTIVE_LIGHTING);
 
                 // This must be set for each eye in XR mode multipass.
@@ -1037,7 +1061,7 @@ namespace UnityEngine.Rendering.Universal.Internal
 
                 RenderStencilLights(context, cmd, ref renderingData);
 
-                if (renderingData.lightData.supportsMixedLighting && this.MixedLightingSetup == MixedLightingSetup.Subtractive)
+                if (renderingData.lightData.supportsMixedLighting && this.MixedLightingSetup != MixedLightingSetup.None)
                     cmd.DisableShaderKeyword(ShaderKeywordStrings._DEFERRED_SUBTRACTIVE_LIGHTING);
 
                 // Legacy fog (Windows -> Rendering -> Lighting Settings -> Fog)
@@ -1503,6 +1527,7 @@ namespace UnityEngine.Rendering.Universal.Internal
 
                 bool hasSoftShadow = hasDeferredShadows && renderingData.shadowData.supportsSoftShadows && vl.light.shadows == LightShadows.Soft;
                 CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.SoftShadows, hasSoftShadow);
+                CoreUtils.SetKeyword(cmd, ShaderKeywordStrings._DEFERRED_MAIN_LIGHT, visLightIndex == mainLightIndex); // main directional light use different uniform constants from additional directional lights
 
                 cmd.SetGlobalVector(ShaderConstants._LightColor, lightColor); // VisibleLight.finalColor already returns color in active color space
                 cmd.SetGlobalVector(ShaderConstants._LightDirection, lightDir);

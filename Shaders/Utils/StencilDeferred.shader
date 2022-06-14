@@ -204,7 +204,7 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
             light.occlusionProbeInfo = _LightOcclusionProbInfo;
             light.flags = _LightFlags;
             light.shadowLightIndex = _ShadowLightIndex;
-            unityLight = UnityLightFromPunctualLightDataAndWorldSpacePosition(light, posWS.xyz, shadowMask, materialReceiveShadowsOff);
+            unityLight = UnityLightFromPunctualLightDataAndWorldSpacePosition(light, posWS.xyz, shadowMask, _ShadowLightIndex, materialReceiveShadowsOff);
         #endif
 
         half3 color = 0.0.xxx;

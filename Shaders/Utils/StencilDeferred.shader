@@ -184,7 +184,7 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
                 unityLight.shadowAttenuation = 1.0;
             else
             {
-                #if defined(_MAIN_LIGHT_SHADOWS) || (defined(_DEFERRED_MAIN_LIGHT) && (defined(SHADOWS_SHADOWMASK) || defined(_MIXED_LIGHTING_SUBTRACTIVE)) )
+                #if defined(_DEFERRED_MAIN_LIGHT) && (defined(_MAIN_LIGHT_SHADOWS) || defined(SHADOWS_SHADOWMASK) || defined(_MIXED_LIGHTING_SUBTRACTIVE))
                     float4 shadowCoord = TransformWorldToShadowCoord(posWS.xyz);
                     unityLight.shadowAttenuation = MainLightShadow(shadowCoord, posWS.xyz, shadowMask, _MainLightOcclusionProbes);
                 #elif defined(_DEFERRED_ADDITIONAL_LIGHT_SHADOWS)

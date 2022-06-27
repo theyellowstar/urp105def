@@ -67,8 +67,10 @@ FragmentOutput frag(PackedVaryings packedInput)
         float metallic = 1;
     #else
         float3 specular = 0;
-        float metallic = surfaceDescription.Metallic;
+        float metallic = saturate(surfaceDescription.Metallic);
     #endif
+
+    surfaceDescription.Smoothness = saturate(surfaceDescription.Smoothness);
 
     // in LitForwardPass GlobalIllumination (and temporarily LightingPhysicallyBased) are called inside UniversalFragmentPBR
     // in Deferred rendering we store the sum of these values (and of emission as well) in the GBuffer

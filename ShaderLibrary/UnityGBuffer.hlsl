@@ -22,6 +22,7 @@
 #define kMaterialFlagReceiveShadowsOff        1 // Does not receive dynamic shadows
 #define kMaterialFlagSpecularHighlightsOff    2 // Does not receivce specular
 #define kMaterialFlagSubtractiveMixedLighting 4 // The geometry uses subtractive mixed lighting
+#define kMaterialFlagSpecularSetup            8 // Lit material use specular setup instead of metallic setup
 
 #define kLightFlagSubtractiveMixedLighting    4 // The light uses subtractive mixed lighting.
 
@@ -147,7 +148,13 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
     materialFlags |= kMaterialFlagReceiveShadowsOff;
 #endif
 
+    #ifdef _SPECULAR_SETUP
     half3 specular = brdfData.specular.rgb;
+    materialFlags |= kMaterialFlagSpecularSetup;
+    #else
+    half3 specular = half3(brdfData.reflectivity, 0.0, 0.0);
+    #endif
+
 #ifdef _SPECULARHIGHLIGHTS_OFF
     // During the next deferred shading pass, we don't use a shader variant to disable specular calculations.
     // Instead, we can either silence specular contribution when writing the gbuffer, and/or reserve a bit in the gbuffer
@@ -161,8 +168,8 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
 #endif
 
     FragmentOutput output;
-    output.GBuffer0 = half4(brdfData.diffuse.rgb, PackMaterialFlags(materialFlags)); // diffuse         diffuse         diffuse         materialFlags   (sRGB rendertarget)
-    output.GBuffer1 = half4(specular, brdfData.reflectivity);                        // specular        specular        specular        reflectivity    (sRGB rendertarget)
+    output.GBuffer0 = half4(brdfData.albedo.rgb, PackMaterialFlags(materialFlags)); // diffuse         diffuse         diffuse         materialFlags   (sRGB rendertarget)
+    output.GBuffer1 = half4(specular, 0.0);                        // specular        specular        specular        [unused]    (sRGB rendertarget)
     output.GBuffer2 = half4(packedNormalWS, packedSmoothness);                       // encoded-normal  encoded-normal  encoded-normal  smoothness
     output.GBuffer3 = half4(globalIllumination, 0);                                  // GI              GI              GI              [not_available] (lighting buffer)
     #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
@@ -172,14 +179,42 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
     return output;
 }
 
+half MetallicFromReflectivity(half reflectivity)
+{
+  half oneMinusDielectricSpec = kDielectricSpec.a;
+  return (reflectivity - kDielectricSpec.r) / oneMinusDielectricSpec;
+}
+
 // This decodes the Gbuffer into a SurfaceData struct
 BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, half4 gbuffer2)
 {
-    half3 diffuse = gbuffer0.rgb;
-    uint materialFlags = UnpackMaterialFlags(gbuffer0.a);
+    half3 albedo = gbuffer0.rgb;
     half3 specular = gbuffer1.rgb;
-    half reflectivity = gbuffer1.a;
-    half oneMinusReflectivity = 1.0h - reflectivity;
+    uint materialFlags = UnpackMaterialFlags(gbuffer0.a);
+
+    half3 brdfDiffuse;
+    half3 brdfSpecular;
+    half reflectivity;
+    half oneMinusReflectivity;
+
+    if ((materialFlags & kMaterialFlagSpecularSetup) != 0)
+    {
+      // Specular setup
+      reflectivity = ReflectivitySpecular(specular);
+      oneMinusReflectivity = half(1.0) - reflectivity;
+      brdfDiffuse = albedo * (half3(1.0h, 1.0h, 1.0h) - specular);
+      brdfSpecular = specular;
+    }
+    else
+    {
+      // Metallic setup
+      reflectivity = specular.r;
+      oneMinusReflectivity = 1.0 - reflectivity;
+      half metallic = MetallicFromReflectivity(reflectivity);
+      brdfDiffuse = albedo * oneMinusReflectivity;
+      brdfSpecular = lerp(kDieletricSpec.rgb, albedo, metallic);
+    }
+
 #if 1 || _GBUFFER_NORMALS_OCT
     half smoothness = gbuffer2.a;
 #else
@@ -188,7 +223,7 @@ BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, half4 gbuffer2)
 
     BRDFData brdfData = (BRDFData)0;
     half alpha = 1.0; // NOTE: alpha can get modfied, forward writes it out (_ALPHAPREMULTIPLY_ON).
-    InitializeBRDFDataDirect(diffuse, specular, reflectivity, oneMinusReflectivity, smoothness, alpha, brdfData);
+    InitializeBRDFDataDirect(albedo, brdfDiffuse, brdfSpecular, reflectivity, oneMinusReflectivity, smoothness, alpha, brdfData);
 
     return brdfData;
 }

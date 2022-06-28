@@ -253,6 +253,7 @@ int GetAdditionalLightsCount()
 
 struct BRDFData
 {
+    half3 albedo;
     half3 diffuse;
     half3 specular;
     half reflectivity;
@@ -287,8 +288,10 @@ half OneMinusReflectivityMetallic(half metallic)
     return oneMinusDielectricSpec - metallic * oneMinusDielectricSpec;
 }
 
-inline void InitializeBRDFDataDirect(half3 diffuse, half3 specular, half reflectivity, half oneMinusReflectivity, half smoothness, inout half alpha, out BRDFData outBRDFData)
+inline void InitializeBRDFDataDirect(half3 albedo, half3 diffuse, half3 specular, half reflectivity, half oneMinusReflectivity, half smoothness, inout half alpha, out BRDFData outBRDFData)
 {
+    // outBRDFData = (BRDFData)0;
+    outBRDFData.albedo = albedo;
     outBRDFData.diffuse = diffuse;
     outBRDFData.specular = specular;
     outBRDFData.reflectivity = reflectivity;
@@ -306,6 +309,12 @@ inline void InitializeBRDFDataDirect(half3 diffuse, half3 specular, half reflect
 #endif
 }
 
+// Legacy: do not call, will not correctly initialize albedo property.
+inline void InitializeBRDFDataDirect(half3 diffuse, half3 specular, half reflectivity, half oneMinusReflectivity, half smoothness, inout half alpha, out BRDFData outBRDFData)
+{
+  InitializeBRDFDataDirect(half3(0.0, 0.0, 0.0), diffuse, specular, reflectivity, oneMinusReflectivity, smoothness, alpha, outBRDFData);
+}
+
 inline void InitializeBRDFData(half3 albedo, half metallic, half3 specular, half smoothness, inout half alpha, out BRDFData outBRDFData)
 {
 #ifdef _SPECULAR_SETUP
@@ -320,7 +329,7 @@ inline void InitializeBRDFData(half3 albedo, half metallic, half3 specular, half
     half3 brdfSpecular = lerp(kDieletricSpec.rgb, albedo, metallic);
 #endif
 
-    InitializeBRDFDataDirect(brdfDiffuse, brdfSpecular, reflectivity, oneMinusReflectivity, smoothness, alpha, outBRDFData);
+    InitializeBRDFDataDirect(albedo, brdfDiffuse, brdfSpecular, reflectivity, oneMinusReflectivity, smoothness, alpha, outBRDFData);
 }
 
 half3 ConvertF0ForClearCoat15(half3 f0)

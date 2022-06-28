@@ -398,7 +398,7 @@ half4 SplatmapFragment(Varyings IN) : SV_TARGET
 
     SplatmapFinalColor(color, inputData.fogCoord);
 
-    return BRDFDataToGbuffer(brdfData, inputData, smoothness, color.rgb);
+    return BRDFDataToGbuffer(brdfData, inputData, smoothness, color.rgb, occlusion);
 
 #else
 

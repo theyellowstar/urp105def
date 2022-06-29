@@ -88,8 +88,13 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         }
         #endif
 
-        #if defined(_DIRECTIONAL) || defined(_FOG) || defined(_CLEAR_STENCIL_PARTIAL)
+        #if defined(_DIRECTIONAL) || defined(_FOG) || defined(_CLEAR_STENCIL_PARTIAL) || (defined(_SSAO_ONLY) && defined(_SCREEN_SPACE_OCCLUSION))
         output.positionCS = float4(positionOS.xy, UNITY_RAW_FAR_CLIP_VALUE, 1.0); // Force triangle to be on zfar
+        #elif defined(_SSAO_ONLY) && !defined(_SCREEN_SPACE_OCCLUSION)
+        // Deferred renderer does not know whether there is a SSAO feature or not at the C# scripting level.
+        // However, this is known at the shader level because of the shader keyword SSAO feature enables.
+        // If the keyword was not enabled, discard the SSAO_only pass by rendering the geometry outside the screen.
+        output.positionCS = float4(positionOS.xy, -2, 1.0); // Force triangle to be discarded
         #else
         VertexPositionInputs vertexInput = GetVertexPositionInputs(positionOS.xyz);
         output.positionCS = vertexInput.positionCS;
@@ -207,6 +212,11 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
             unityLight = UnityLightFromPunctualLightDataAndWorldSpacePosition(light, posWS.xyz, shadowMask, _ShadowLightIndex, materialReceiveShadowsOff);
         #endif
 
+        #if defined(_SCREEN_SPACE_OCCLUSION)
+            AmbientOcclusionFactor aoFactor = GetScreenSpaceAmbientOcclusion(screen_uv);
+            unityLight.color *= aoFactor.directAmbientOcclusion;
+        #endif
+
         half3 color = 0.0.xxx;
 
         #if defined(_LIT)
@@ -232,6 +242,18 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         half fogFactor = ComputeFogFactor(clip_z);
         half fogIntensity = ComputeFogIntensity(fogFactor);
         return half4(unity_FogColor.rgb, fogIntensity);
+    }
+
+    half4 FragSSAOOnly(Varyings input) : SV_Target
+    {
+        float2 screen_uv = (input.screenUV.xy / input.screenUV.z);
+        AmbientOcclusionFactor aoFactor = GetScreenSpaceAmbientOcclusion(screen_uv);
+        half surfaceDataOcclusion = SAMPLE_TEXTURE2D_X_LOD(_GBuffer1, my_point_clamp_sampler, screen_uv, 0).a;
+        // What we want is really to apply the mininum occlusion value between the baked occlusion from surfaceDataOcclusion and real-time occlusion from SSAO.
+        // But we already applied the baked occlusion during gbuffer pass, so we have to cancel it out here.
+        // We must also avoid divide-by-0 that the reciprocal can generate.
+        half occlusion = aoFactor.indirectAmbientOcclusion < surfaceDataOcclusion ? aoFactor.indirectAmbientOcclusion * rcp(surfaceDataOcclusion) : 1.0;
+        return half4(0.0, 0.0, 0.0, occlusion);
     }
 
     ENDHLSL
@@ -503,6 +525,34 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
             #pragma fragment FragWhite
 
             ENDHLSL
+        }
+
+        // 7 - SSAO Only
+        // This pass only runs when there is no fullscreen deferred light rendered (no directional light). It will adjust indirect/baked lighting with realtime occlusion
+        // by rendering just before deferred shading pass.
+        // This pass is also completely discarded from vertex shader when SSAO renderer feature is not enabled.
+        Pass
+        {
+            Name "SSAOOnly"
+
+            ZTest NotEqual
+            ZWrite Off
+            Cull Off
+            Blend One SrcAlpha, Zero One
+            BlendOp Add, Add
+
+            HLSLPROGRAM
+            // #pragma exclude_renderers gles gles3 glcore
+            #pragma target 4.5
+
+            #pragma multi_compile_vertex _SSAO_ONLY
+            #pragma multi_compile_vertex _ _SCREEN_SPACE_OCCLUSION
+
+            #pragma vertex Vertex
+            #pragma fragment FragSSAOOnly
+          //#pragma enable_d3d11_debug_symbols
+
+          ENDHLSL
         }
     }
 

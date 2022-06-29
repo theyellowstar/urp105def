@@ -1057,6 +1057,8 @@ namespace UnityEngine.Rendering.Universal.Internal
                 // This must be set for each eye in XR mode multipass.
                 SetupMatrixConstants(cmd, ref renderingData);
 
+                RenderSSAOBeforeShading(cmd, ref renderingData);
+
                 RenderTileLights(context, cmd, ref renderingData);
 
                 RenderStencilLights(context, cmd, ref renderingData);
@@ -1653,6 +1655,14 @@ namespace UnityEngine.Rendering.Universal.Internal
             cmd.DisableShaderKeyword(ShaderKeywordStrings.SoftShadows);
             cmd.DisableShaderKeyword(ShaderKeywordStrings._SPOT);
         }
+
+		void RenderSSAOBeforeShading(CommandBuffer cmd, ref RenderingData renderingData)
+		{
+			if (m_FullscreenMesh == null)
+				m_FullscreenMesh = CreateFullscreenMesh();
+
+			cmd.DrawMesh(m_FullscreenMesh, Matrix4x4.identity, m_StencilDeferredMaterial, 0, m_StencilDeferredMaterial.FindPass("SSAOOnly"));
+		}
 
         void RenderFog(ScriptableRenderContext context, CommandBuffer cmd, ref RenderingData renderingData)
         {

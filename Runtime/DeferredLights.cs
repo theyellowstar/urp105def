@@ -103,7 +103,7 @@ namespace UnityEngine.Rendering.Universal.Internal
     internal enum LightFlag
     {
         // Keep in sync with kLightFlagSubtractiveMixedLighting.
-        SubtractiveMixedLighting = 4
+        SubtractiveMixedLighting = 8
     }
 
     // Manages tiled-based deferred lights.
@@ -270,7 +270,7 @@ namespace UnityEngine.Rendering.Universal.Internal
         internal GraphicsFormat GetGBufferFormat(int index)
         {
             if (index == GBufferAlbedoIndex) // sRGB albedo, materialFlags
-                return QualitySettings.activeColorSpace == ColorSpace.Linear ? GraphicsFormat.R8G8B8A8_SRGB : GraphicsFormat.R8G8B8A8_UNorm;
+                return GraphicsFormat.R8G8B8A8_UNorm;
             else if (index == GBufferSpecularMetallicIndex) // sRGB specular, [unused]
                 return QualitySettings.activeColorSpace == ColorSpace.Linear ? GraphicsFormat.R8G8B8A8_SRGB : GraphicsFormat.R8G8B8A8_UNorm;    
             else if (index == GBufferNormalSmoothnessIndex)

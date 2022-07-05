@@ -48,17 +48,13 @@ uint UnpackMaterialFlags(float packedMaterialFlags)
 
 float3 PackRGBAndMaterialFlagsToRGB(float3 rgb, uint materialFlags)
 {
-  rgb = saturate(rgb);
-  const uint3 urgb = uint3(rgb * 127.0h + 0.5h);
-  const uint3 packed = (urgb << 1) + uint3((materialFlags & uint3(4, 2, 1) ) * float3(1.0/4.0, 1.0/2.0, 1));
-  return packed * (1.0h / 255.0h);
+  return rgb * 0.5 + (float3)(materialFlags&4, materialFlags&2, materialFlags&1) * float3(8.0, 4.0, 2.0);
 }
 
 float3 UnpackRGBToRGBAndMaterialFlags(float3 rgb, out uint materialFlags)
 {
-  const uint3 packed = uint3((rgb * 255.0h) + 0.5h);
-  materialFlags = dot((packed & 1), uint3(4, 2, 1));
-  return (packed>>1) * (1.0h/127.0h);
+  materialFlags = (uint)dot((rgb >= 0.5 ?  float3(4.0, 2.0, 1.0) : float3(0.0, 0.0, 0.0)), float3(1.0, 1.0, 1.0));
+  return frac(rgb * 2.0);
 }
 
 // This will encode SurfaceData into GBuffer

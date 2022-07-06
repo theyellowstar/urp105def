@@ -178,8 +178,8 @@ half4 SpeedTree7Frag(SpeedTreeVertexOutput input) : SV_Target
 
     #ifdef GBUFFER
         half4 color = half4(inputData.bakedGI * diffuseColor.rgb, diffuse.a);
-        SurfaceData surfaceData;
-        surfaceData.smoothness = 0;
+        SurfaceData surfaceData = (SurfaceData)0;
+        // surfaceData.smoothness = 0;
         surfaceData.albedo = diffuseColor.rgb;
         surfaceData.specular = half3(0, 0, 0);
         return SurfaceDataToGbuffer(surfaceData, inputData, color.rgb, kLightingSimpleLit);

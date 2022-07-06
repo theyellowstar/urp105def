@@ -156,7 +156,7 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         #endif
 
         uint materialFlags;
-        UnpackRGBToRGBAndMaterialFlags(gbuffer0.rgb, materialFlags);
+        UnpackAOAndMaterialFlags(gbuffer1.b, materialFlags);
         bool materialReceiveShadowsOff = (materialFlags & kMaterialFlagReceiveShadowsOff) != 0;
         #if SHADER_API_MOBILE || SHADER_API_SWITCH
         // Specular highlights are still silenced by setting specular to 0.0 during gbuffer pass and GPU timing is still reduced.
@@ -165,11 +165,13 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         bool materialSpecularHighlightsOff = (materialFlags & kMaterialFlagSpecularHighlightsOff);
         #endif
 
+        /*
         #if defined(_DEFERRED_SUBTRACTIVE_LIGHTING)
         // If both lights and geometry are static, then no realtime lighting to perform for this combination.
         [branch] if ((_LightFlags & materialFlags) == kMaterialFlagSubtractiveMixedLighting)
             return half4(0.0, 0.0, 0.0, 0.0); // Cannot discard because stencil must be updated.
         #endif
+        */
 
         #if defined(USING_STEREO_MATRICES)
         int eyeIndex = unity_StereoEyeIndex;

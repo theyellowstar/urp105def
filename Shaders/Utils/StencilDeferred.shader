@@ -156,7 +156,7 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         #endif
 
         uint materialFlags;
-        UnpackAOAndMaterialFlags(gbuffer1.b, materialFlags);
+        UnpackSmoothnessAndMaterialFlags(gbuffer1.a, materialFlags);
         bool materialReceiveShadowsOff = (materialFlags & kMaterialFlagReceiveShadowsOff) != 0;
         #if SHADER_API_MOBILE || SHADER_API_SWITCH
         // Specular highlights are still silenced by setting specular to 0.0 during gbuffer pass and GPU timing is still reduced.

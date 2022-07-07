@@ -46,12 +46,12 @@ uint UnpackMaterialFlags(float packedMaterialFlags)
     return uint((packedMaterialFlags * 255.0h) + 0.5h);
 }
 
-half PackAOAndMaterialFlags(half ao, uint materialFlags)
+half PackSmoothnessAndMaterialFlags(half Smoothness, uint materialFlags)
 {
-  return dot(half2(materialFlags, ao), half2(0.25h, 0.24h));
+  return dot(half2(materialFlags, Smoothness), half2(0.25h, 0.246h));
 }
 
-half UnpackAOAndMaterialFlags(half packed, out uint materialFlags)
+half UnpackSmoothnessAndMaterialFlags(half packed, out uint materialFlags)
 {
   return modf(packed * 4.0h, materialFlags);
 }
@@ -71,7 +71,7 @@ FragmentOutput SurfaceDataToGbuffer(SurfaceData surfaceData, InputData inputData
     else
         packedSmoothness = surfaceData.smoothness;                     // values between [ 0,  1]
 #else
-    half2 packedNormalWS = PackNormalOctQuadEncode(inputData.normalWS) * 0.5 + 0.5;                         // values between [0,  1]
+    half3 packedNormalWS = inputData.normalWS * 0.5 + 0.5;                         // values between [0,  1]
 
     // See SimpleLitInput.hlsl, SampleSpecularSmoothness().
     half packedSmoothness;
@@ -102,7 +102,7 @@ FragmentOutput SurfaceDataToGbuffer(SurfaceData surfaceData, InputData inputData
 #if 0 && _GBUFFER_NORMALS_OCT
     output.GBuffer1 = half4(packedNormalWS, packedSmoothness);                           // encoded-normal  encoded-normal  encoded-normal  packed-smoothness
 #else
-    output.GBuffer1 = half4(packedNormalWS, PackAOAndMaterialFlags(surfaceData.occlusion, materialFlags), packedSmoothness);
+    output.GBuffer1 = half4(packedNormalWS, PackSmoothnessAndMaterialFlags(packedSmoothness, materialFlags));
 #endif
     output.GBuffer2 = half4(globalIllumination, 0);                                      // GI              GI              GI              [not_available] (lighting buffer)
     #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
@@ -123,8 +123,6 @@ SurfaceData SurfaceDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, int lightingM
 {
     SurfaceData surfaceData;
 
-    uint materialFlags;
-    UnpackAOAndMaterialFlags(gbuffer1.b, materialFlags);
     surfaceData.albedo = gbuffer0.rgb;
     surfaceData.occlusion = 1.0; // Not used by SimpleLit material.
     surfaceData.specular = gbuffer1.rgb;
@@ -135,17 +133,18 @@ SurfaceData SurfaceDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, int lightingM
     surfaceData.specular = lerp(kDieletricSpec.rgb, surfaceData.albedo, metallic);
 
     half smoothness;
+    uint materialFlags;
 
 #if 1 || _GBUFFER_NORMALS_OCT
     if (lightingMode == kLightingSimpleLit)
-        smoothness = exp2(10.0h * gbuffer1.a + 1.0h);
+        smoothness = exp2(10.0h * UnpackSmoothnessAndMaterialFlags(gbuffer1.a, materialFlags) + 1.0h);
     else
-        smoothness = gbuffer1.a;
+        smoothness = UnpackSmoothnessAndMaterialFlags(gbuffer1.a, materialFlags);
 #else
     if (lightingMode == kLightingSimpleLit)
-        smoothness = exp2(5.0h * gbuffer2.a + 6.0h);
+        smoothness = exp2(5.0h * UnpackSmoothnessAndMaterialFlags(gbuffer1.a, materialFlags) + 6.0h);
     else
-        smoothness = gbuffer1.a * 0.5h + 0.5h;
+        smoothness = UnpackSmoothnessAndMaterialFlags(gbuffer1.a, materialFlags) * 0.5h + 0.5h;
 #endif
 
     surfaceData.metallic = 0.0; // Not used by SimpleLit material.
@@ -167,7 +166,7 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
     half3 packedNormalWS = PackFloat2To888(remappedOctNormalWS);
     half packedSmoothness = smoothness;
 #else
-    half2 packedNormalWS = PackNormalOctQuadEncode(inputData.normalWS) * 0.5 + 0.5;                       // values between [0,  1]
+    half3 packedNormalWS = inputData.normalWS * 0.5 + 0.5;                       // values between [0,  1]
     half packedSmoothness = smoothness;
 #endif
 
@@ -205,7 +204,7 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
 #if 0 && _GBUFFER_NORMALS_OCT
     output.GBuffer1 = half4(packedNormalWS, packedSmoothness);                       // encoded-normal  encoded-normal  encoded-normal  smoothness
 #else
-    output.GBuffer1 = half4(packedNormalWS, PackAOAndMaterialFlags(occlusion, materialFlags), packedSmoothness);
+    output.GBuffer1 = half4(packedNormalWS, PackSmoothnessAndMaterialFlags(packedSmoothness, materialFlags));
 #endif
     output.GBuffer2 = half4(globalIllumination, 0);                                  // GI              GI              GI              [not_available] (lighting buffer)
     #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
@@ -218,7 +217,7 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
 // This decodes the Gbuffer into a SurfaceData struct
 BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1)
 {
-    half3 specular = gbuffer1.rgb;
+    // half3 specular = gbuffer1.rgb;
     half3 albedo = gbuffer0.rgb;
 
     half3 brdfDiffuse;
@@ -246,10 +245,11 @@ BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1)
       brdfSpecular = lerp(kDieletricSpec.rgb, albedo, metallic);
     }
 
+    uint materialFlags;
 #if 1 || _GBUFFER_NORMALS_OCT
-    half smoothness = gbuffer1.a;
+    half smoothness = UnpackSmoothnessAndMaterialFlags(gbuffer1.a, materialFlags);
 #else
-    half smoothness = gbuffer1.a * 0.5h + 0.5h;
+    half smoothness = UnpackSmoothnessAndMaterialFlags(gbuffer1.a, materialFlags) * 0.5h + 0.5h;
 #endif
 
     BRDFData brdfData = (BRDFData)0;
@@ -270,7 +270,7 @@ InputData InputDataFromGbufferAndWorldPosition(half4 gbuffer1, float3 wsPos)
     half2 octNormalWS = remappedOctNormalWS.xy * 2.0h - 1.0h;    // values between [-1, +1]
     inputData.normalWS = UnpackNormalOctQuadEncode(octNormalWS);
 #else
-    inputData.normalWS = UnpackNormalOctQuadEncode(gbuffer1.xy * 2.0 - 1.0);  // values between [-1, +1]
+    inputData.normalWS = gbuffer1.xyz * 2.0 - 1.0;  // values between [-1, +1]
 #endif
 
     inputData.viewDirectionWS = SafeNormalize(GetWorldSpaceViewDir(wsPos.xyz));

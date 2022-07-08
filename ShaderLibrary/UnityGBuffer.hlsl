@@ -270,7 +270,7 @@ InputData InputDataFromGbufferAndWorldPosition(half4 gbuffer1, float3 wsPos)
     half2 octNormalWS = remappedOctNormalWS.xy * 2.0h - 1.0h;    // values between [-1, +1]
     inputData.normalWS = UnpackNormalOctQuadEncode(octNormalWS);
 #else
-    inputData.normalWS = gbuffer1.xyz * 2.0 - 1.0;  // values between [-1, +1]
+    inputData.normalWS = normalize(gbuffer1.xyz * 2.0 - 1.0);  // values between [-1, +1]
 #endif
 
     inputData.viewDirectionWS = SafeNormalize(GetWorldSpaceViewDir(wsPos.xyz));

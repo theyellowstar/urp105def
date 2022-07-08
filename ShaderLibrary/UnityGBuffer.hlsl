@@ -48,7 +48,7 @@ uint UnpackMaterialFlags(float packedMaterialFlags)
 
 half PackSmoothnessAndMaterialFlags(half Smoothness, uint materialFlags)
 {
-  return dot(half2(materialFlags, Smoothness), half2(0.25h, 0.246h));
+  return dot(half2(materialFlags, Smoothness), half2(0.25h, 0.249h));
 }
 
 half UnpackSmoothnessAndMaterialFlags(half packed, out uint materialFlags)

@@ -94,10 +94,10 @@ FragmentOutput SurfaceDataToGbuffer(SurfaceData surfaceData, InputData inputData
 #endif
 
     // 我乱写的
-    half reflectivity = max(surfaceData.specular.r, max(surfaceData.specular.g, surfaceData.specular.b));
+    half specular = dot(surfaceData.specular.rgb, half3(1.0h / 3.0h, 1.0h / 3.0h, 1.0h / 3.0h));
 
     FragmentOutput output;
-    output.GBuffer0 = half4(surfaceData.albedo.rgb, reflectivity);   // albedo          albedo          albedo          materialFlags   (sRGB rendertarget)
+    output.GBuffer0 = half4(surfaceData.albedo.rgb, specular);   // albedo          albedo          albedo          materialFlags   (sRGB rendertarget)
     // output.GBuffer1 = half4(0, 0, 0, surfaceData.occlusion);                                // specular        specular        specular        [unused]        (sRGB rendertarget)
 #if 0 && _GBUFFER_NORMALS_OCT
     output.GBuffer1 = half4(packedNormalWS, packedSmoothness);                           // encoded-normal  encoded-normal  encoded-normal  packed-smoothness
@@ -128,9 +128,7 @@ SurfaceData SurfaceDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, int lightingM
     surfaceData.specular = gbuffer1.rgb;
 
     // 我乱写的
-    half reflectivity = gbuffer0.a;
-    half metallic = MetallicFromReflectivity(reflectivity);
-    surfaceData.specular = lerp(kDieletricSpec.rgb, surfaceData.albedo, metallic);
+    surfaceData.specular = gbuffer0.aaa;
 
     half smoothness;
     uint materialFlags;
@@ -181,6 +179,8 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
     // materialFlags |= kMaterialFlagSpecularSetup;
     // 我乱写的
     half reflectivity = max(brdfData.specular.r, max(brdfData.specular.g, brdfData.specular.b));
+    brdfData.albedo.rgb = brdfData.albedo.rgb + brdfData.specular.rgb * reflectivity;
+    // reflectivity = smoothstep(-0.1h, 0.5h, reflectivity);
     #else
     half3 specular = half3(brdfData.reflectivity, 0.0, 0.0);
     half reflectivity = brdfData.reflectivity;

@@ -114,9 +114,9 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
     SAMPLER(sampler_CameraDepthTexture);
     TEXTURE2D_X_HALF(_GBuffer0);
     TEXTURE2D_X_HALF(_GBuffer1);
-    // TEXTURE2D_X_HALF(_GBuffer2);
+    TEXTURE2D_X_HALF(_GBuffer2);
     #ifdef _DEFERRED_SUBTRACTIVE_LIGHTING
-    TEXTURE2D_X_HALF(_GBuffer3);
+    TEXTURE2D_X_HALF(_GBuffer4);
     #endif
 
     float4x4 _ScreenToWorld[2];
@@ -146,11 +146,11 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         float d        = SAMPLE_TEXTURE2D_X_LOD(_CameraDepthTexture, sampler_CameraDepthTexture, screen_uv, 0).x; // raw depth value has UNITY_REVERSED_Z applied on most platforms.
         half4 gbuffer0 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer0, my_point_clamp_sampler, screen_uv, 0);
         half4 gbuffer1 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer1, my_point_clamp_sampler, screen_uv, 0);
-        // half4 gbuffer2 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer2, my_point_clamp_sampler, screen_uv, 0);
+        half4 gbuffer2 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer2, my_point_clamp_sampler, screen_uv, 0);
 
         #ifdef _DEFERRED_SUBTRACTIVE_LIGHTING
-        half4 gbuffer3 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer3, my_point_clamp_sampler, screen_uv, 0);
-        half4 shadowMask = gbuffer3;
+        half4 gbuffer4 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer4, my_point_clamp_sampler, screen_uv, 0);
+        half4 shadowMask = gbuffer4;
         #else
         half4 shadowMask = 1.0;
         #endif
@@ -223,10 +223,13 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         half3 color = 0.0.xxx;
 
         #if defined(_LIT)
-            BRDFData brdfData = BRDFDataFromGbuffer(gbuffer0, gbuffer1);
+            BRDFData brdfData = BRDFDataFromGbuffer(gbuffer0, gbuffer1, gbuffer2);
             color = LightingPhysicallyBased(brdfData, unityLight, inputData.normalWS, inputData.viewDirectionWS, materialSpecularHighlightsOff);
+#if defined(_DEFERRED_MAIN_LIGHT)
+            color += GlobalIllumination(brdfData, gbuffer2.rgb, gbuffer2.a, inputData.normalWS, inputData.viewDirectionWS);
+#endif
         #elif defined(_SIMPLELIT)
-            SurfaceData surfaceData = SurfaceDataFromGbuffer(gbuffer0, gbuffer1, kLightingSimpleLit);
+            SurfaceData surfaceData = SurfaceDataFromGbuffer(gbuffer0, gbuffer1, gbuffer2, kLightingSimpleLit);
             half3 attenuatedLightColor = unityLight.color * (unityLight.distanceAttenuation * unityLight.shadowAttenuation);
             half3 diffuseColor = LightingLambert(attenuatedLightColor, unityLight.direction, inputData.normalWS);
             half3 specularColor = LightingSpecular(attenuatedLightColor, unityLight.direction, inputData.normalWS, inputData.viewDirectionWS, half4(surfaceData.specular, surfaceData.smoothness), surfaceData.smoothness);

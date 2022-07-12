@@ -30,9 +30,10 @@ struct FragmentOutput
 {
     half4 GBuffer0 : SV_Target0;
     half4 GBuffer1 : SV_Target1;
-    half4 GBuffer2 : SV_Target2; // Camera color attachment
+    half4 GBuffer2 : SV_Target2;
+    half4 GBuffer3 : SV_Target3; // Camera color attachment
     #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
-    half4 GBuffer3 : SV_Target4;
+    half4 GBuffer4 : SV_Target4;
     #endif
 };
 
@@ -104,9 +105,10 @@ FragmentOutput SurfaceDataToGbuffer(SurfaceData surfaceData, InputData inputData
 #else
     output.GBuffer1 = half4(packedNormalWS, PackSmoothnessAndMaterialFlags(packedSmoothness, materialFlags));
 #endif
-    output.GBuffer2 = half4(globalIllumination, 0);                                      // GI              GI              GI              [not_available] (lighting buffer)
+    output.GBuffer2 = half4(inputData.bakedGI, surfaceData.occlusion);
+    output.GBuffer3 = half4(globalIllumination, 0);                                      // GI              GI              GI              [not_available] (lighting buffer)
     #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
-    output.GBuffer3 = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
+    output.GBuffer4 = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
     #endif
 
     return output;
@@ -119,12 +121,12 @@ half MetallicFromReflectivity(half reflectivity)
 }
 
 // This decodes the Gbuffer into a SurfaceData struct
-SurfaceData SurfaceDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, int lightingMode)
+SurfaceData SurfaceDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, half4 gbuffer2, int lightingMode)
 {
     SurfaceData surfaceData;
 
     surfaceData.albedo = gbuffer0.rgb;
-    surfaceData.occlusion = 1.0; // Not used by SimpleLit material.
+    surfaceData.occlusion = gbuffer2.a; // Not used by SimpleLit material.
     surfaceData.specular = gbuffer1.rgb;
 
     // ÎÒÂÒÐ´µÄ
@@ -206,16 +208,17 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
 #else
     output.GBuffer1 = half4(packedNormalWS, PackSmoothnessAndMaterialFlags(packedSmoothness, materialFlags));
 #endif
-    output.GBuffer2 = half4(globalIllumination, 0);                                  // GI              GI              GI              [not_available] (lighting buffer)
+    output.GBuffer2 = half4(inputData.bakedGI, occlusion);
+    output.GBuffer3 = half4(globalIllumination, 0);                                  // GI              GI              GI              [not_available] (lighting buffer)
     #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
-    output.GBuffer3 = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
+    output.GBuffer4 = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
     #endif
 
     return output;
 }
 
 // This decodes the Gbuffer into a SurfaceData struct
-BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1)
+BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, half4 gbuffer2)
 {
     // half3 specular = gbuffer1.rgb;
     half3 albedo = gbuffer0.rgb;

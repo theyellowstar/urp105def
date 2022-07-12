@@ -626,7 +626,7 @@ namespace UnityEngine.Rendering.Universal
                 return (cameraData.clearDepth) ? ClearFlag.Depth : ClearFlag.None;
 
             // Always clear on first render pass in mobile as it's same perf of DontCare and avoid tile clearing issues.
-            if (Application.isMobilePlatform)
+            if (Application.isMobilePlatform || Application.platform == RuntimePlatform.WindowsEditor)
                 return ClearFlag.All;
 
             if ((cameraClearFlags == CameraClearFlags.Skybox && RenderSettings.skybox != null) ||

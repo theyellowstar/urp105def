@@ -251,35 +251,28 @@ namespace UnityEngine.Rendering.Universal.Internal
         internal enum GBufferHandles
         {
             DepthAsColor = 0,
-            /*
             Albedo = 1,
             SpecularMetallic = 2,
             NormalSmoothness = 3,
             Lighting = 4,
             ShadowMask = 5,
             Count = 6
-            */
-            Albedo = 1,
-            NormalSmoothness = 2,
-            Lighting = 3,
-            ShadowMask = 4,
-            Count = 5,
-		}
+        }
 
         internal int GbufferDepthIndex { get { return UseRenderPass ? 0 : -1; } }
         internal int GBufferAlbedoIndex { get { return GbufferDepthIndex + 1; } }
-        // internal int GBufferSpecularMetallicIndex { get { return GBufferAlbedoIndex + 1; } }
-        internal int GBufferNormalSmoothnessIndex { get { return GBufferAlbedoIndex + 1; } }
+        internal int GBufferSpecularMetallicIndex { get { return GBufferAlbedoIndex + 1; } }
+        internal int GBufferNormalSmoothnessIndex { get { return GBufferSpecularMetallicIndex + 1; } }
         internal int GBufferLightingIndex { get { return GBufferNormalSmoothnessIndex + 1; } }
         internal int GBufferShadowMask { get { return UseShadowMask ? GBufferLightingIndex + 1 : -1; } }
-        internal int GBufferSliceCount { get { return 3 + (UseRenderPass ? 1 : 0) + (UseShadowMask ? 1 : 0); } }
+        internal int GBufferSliceCount { get { return 4 + (UseRenderPass ? 1 : 0) + (UseShadowMask ? 1 : 0); } }
 
         internal GraphicsFormat GetGBufferFormat(int index)
         {
             if (index == GBufferAlbedoIndex) // sRGB albedo, materialFlags
                 return GraphicsFormat.R8G8B8A8_UNorm;
-            // else if (index == GBufferSpecularMetallicIndex) // sRGB specular, [unused]
-                // return QualitySettings.activeColorSpace == ColorSpace.Linear ? GraphicsFormat.R8G8B8A8_SRGB : GraphicsFormat.R8G8B8A8_UNorm;    
+            else if (index == GBufferSpecularMetallicIndex) // sRGB specular, [unused]
+                return QualitySettings.activeColorSpace == ColorSpace.Linear ? GraphicsFormat.R8G8B8A8_UNorm : GraphicsFormat.R8G8B8A8_UNorm;    
             else if (index == GBufferNormalSmoothnessIndex)
                 return this.AccurateGbufferNormals ? GraphicsFormat.R8G8B8A8_UNorm : GraphicsFormat.R8G8B8A8_UNorm; // normal normal normal packedSmoothness
             else if (index == GBufferLightingIndex) // Emissive+baked: Most likely B10G11R11_UFloatPack32 or R16G16B16A16_SFloat
@@ -734,7 +727,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             if (this.GbufferAttachments == null || this.GbufferAttachments.Length != this.GBufferSliceCount)
                 this.GbufferAttachments = new RenderTargetHandle[this.GBufferSliceCount];
             this.GbufferAttachments[this.GBufferAlbedoIndex] = gbufferHandles[(int)GBufferHandles.Albedo];
-            // this.GbufferAttachments[this.GBufferSpecularMetallicIndex] = gbufferHandles[(int)GBufferHandles.SpecularMetallic];
+            this.GbufferAttachments[this.GBufferSpecularMetallicIndex] = gbufferHandles[(int)GBufferHandles.SpecularMetallic];
             this.GbufferAttachments[this.GBufferNormalSmoothnessIndex] = gbufferHandles[(int)GBufferHandles.NormalSmoothness];
             this.GbufferAttachments[this.GBufferLightingIndex] = gbufferHandles[(int)GBufferHandles.Lighting];
             if (this.GbufferDepthIndex >= 0)

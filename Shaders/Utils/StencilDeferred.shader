@@ -223,13 +223,11 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         half3 color = 0.0.xxx;
 
         #if defined(_LIT)
-            BRDFData brdfData = BRDFDataFromGbuffer(gbuffer0, gbuffer1, gbuffer2);
+            BRDFData brdfData = BRDFDataFromGbuffer(gbuffer0, gbuffer1);
             color = LightingPhysicallyBased(brdfData, unityLight, inputData.normalWS, inputData.viewDirectionWS, materialSpecularHighlightsOff);
-#if defined(_DEFERRED_MAIN_LIGHT)
-            color += GlobalIllumination(brdfData, gbuffer2.rgb, gbuffer2.a, inputData.normalWS, inputData.viewDirectionWS);
-#endif
+            color += gbuffer2.rgb * gbuffer2.a * 0.001;
         #elif defined(_SIMPLELIT)
-            SurfaceData surfaceData = SurfaceDataFromGbuffer(gbuffer0, gbuffer1, gbuffer2, kLightingSimpleLit);
+            SurfaceData surfaceData = SurfaceDataFromGbuffer(gbuffer0, gbuffer1, kLightingSimpleLit);
             half3 attenuatedLightColor = unityLight.color * (unityLight.distanceAttenuation * unityLight.shadowAttenuation);
             half3 diffuseColor = LightingLambert(attenuatedLightColor, unityLight.direction, inputData.normalWS);
             half3 specularColor = LightingSpecular(attenuatedLightColor, unityLight.direction, inputData.normalWS, inputData.viewDirectionWS, half4(surfaceData.specular, surfaceData.smoothness), surfaceData.smoothness);

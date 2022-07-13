@@ -121,12 +121,12 @@ half MetallicFromReflectivity(half reflectivity)
 }
 
 // This decodes the Gbuffer into a SurfaceData struct
-SurfaceData SurfaceDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, half4 gbuffer2, int lightingMode)
+SurfaceData SurfaceDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, int lightingMode)
 {
     SurfaceData surfaceData;
 
     surfaceData.albedo = gbuffer0.rgb;
-    surfaceData.occlusion = gbuffer2.a; // Not used by SimpleLit material.
+    surfaceData.occlusion = 1.0; // Not used by SimpleLit material.
     surfaceData.specular = gbuffer1.rgb;
 
     // ÎÒÂÒÐ´µÄ
@@ -218,7 +218,7 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
 }
 
 // This decodes the Gbuffer into a SurfaceData struct
-BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1, half4 gbuffer2)
+BRDFData BRDFDataFromGbuffer(half4 gbuffer0, half4 gbuffer1)
 {
     // half3 specular = gbuffer1.rgb;
     half3 albedo = gbuffer0.rgb;

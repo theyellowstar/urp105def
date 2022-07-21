@@ -76,7 +76,9 @@ namespace UnityEngine.Rendering.Universal
                 return;
             }
 
-            bool shouldAdd = m_SSAOPass.Setup(m_Settings);
+			bool isRendererDeferred = (renderer != null && renderer is ForwardRenderer && ((ForwardRenderer)renderer).renderingMode == RenderingMode.Deferred);
+
+            bool shouldAdd = m_SSAOPass.Setup(m_Settings, isRendererDeferred);
             if (shouldAdd)
             {
                 renderer.EnqueuePass(m_SSAOPass);
@@ -149,8 +151,11 @@ namespace UnityEngine.Rendering.Universal
                 m_CurrentSettings = new ScreenSpaceAmbientOcclusionSettings();
             }
 
-            internal bool Setup(ScreenSpaceAmbientOcclusionSettings featureSettings)
+            internal bool Setup(ScreenSpaceAmbientOcclusionSettings featureSettings, bool isRendererDeferred)
             {
+                // m_DeferredPass = new DeferredPass(RenderPassEvent.BeforeRenderingOpaques + 5, m_DeferredLights);
+                renderPassEvent = isRendererDeferred ? RenderPassEvent.BeforeRenderingOpaques + 4 
+                    : RenderPassEvent.BeforeRenderingOpaques;
                 m_CurrentSettings = featureSettings;
                 switch (m_CurrentSettings.Source)
                 {

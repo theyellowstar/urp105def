@@ -563,6 +563,7 @@ namespace UnityEngine.Rendering.Universal
         public int additionalLightsShadowmapResolution
         {
             get { return (int)m_AdditionalLightsShadowmapResolution; }
+            set { m_AdditionalLightsShadowmapResolution = (ShadowResolution)value; }
         }
 
         /// <summary>
@@ -641,6 +642,7 @@ namespace UnityEngine.Rendering.Universal
         public bool supportsSoftShadows
         {
             get { return m_SoftShadowsSupported; }
+            set { m_SoftShadowsSupported = value; }
         }
 
         public bool supportsDynamicBatching

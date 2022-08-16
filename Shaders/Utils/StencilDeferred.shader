@@ -114,9 +114,9 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
     SAMPLER(sampler_CameraDepthTexture);
     TEXTURE2D_X_HALF(_GBuffer0);
     TEXTURE2D_X_HALF(_GBuffer1);
-    // TEXTURE2D_X_HALF(_GBuffer2);
+    TEXTURE2D_X_HALF(_GBuffer2);
     #ifdef _DEFERRED_SUBTRACTIVE_LIGHTING
-    TEXTURE2D_X_HALF(_GBuffer3);
+    TEXTURE2D_X_HALF(_GBuffer4);
     #endif
 
     float4x4 _ScreenToWorld[2];
@@ -146,17 +146,16 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         float d        = SAMPLE_TEXTURE2D_X_LOD(_CameraDepthTexture, sampler_CameraDepthTexture, screen_uv, 0).x; // raw depth value has UNITY_REVERSED_Z applied on most platforms.
         half4 gbuffer0 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer0, my_point_clamp_sampler, screen_uv, 0);
         half4 gbuffer1 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer1, my_point_clamp_sampler, screen_uv, 0);
-        // half4 gbuffer2 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer2, my_point_clamp_sampler, screen_uv, 0);
+        half4 gbuffer2 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer2, my_point_clamp_sampler, screen_uv, 0);
 
         #ifdef _DEFERRED_SUBTRACTIVE_LIGHTING
-        half4 gbuffer3 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer3, my_point_clamp_sampler, screen_uv, 0);
-        half4 shadowMask = gbuffer3;
+        half4 gbuffer4 = SAMPLE_TEXTURE2D_X_LOD(_GBuffer4, my_point_clamp_sampler, screen_uv, 0);
+        half4 shadowMask = gbuffer4;
         #else
         half4 shadowMask = 1.0;
         #endif
 
-        uint materialFlags;
-        UnpackSmoothnessAndMaterialFlags(gbuffer1.a, materialFlags);
+        uint materialFlags = UnpackMaterialFlags(gbuffer0.a);
         bool materialReceiveShadowsOff = (materialFlags & kMaterialFlagReceiveShadowsOff) != 0;
         #if SHADER_API_MOBILE || SHADER_API_SWITCH
         // Specular highlights are still silenced by setting specular to 0.0 during gbuffer pass and GPU timing is still reduced.
@@ -165,13 +164,11 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         bool materialSpecularHighlightsOff = (materialFlags & kMaterialFlagSpecularHighlightsOff);
         #endif
 
-        /*
         #if defined(_DEFERRED_SUBTRACTIVE_LIGHTING)
         // If both lights and geometry are static, then no realtime lighting to perform for this combination.
         [branch] if ((_LightFlags & materialFlags) == kMaterialFlagSubtractiveMixedLighting)
             return half4(0.0, 0.0, 0.0, 0.0); // Cannot discard because stencil must be updated.
         #endif
-        */
 
         #if defined(USING_STEREO_MATRICES)
         int eyeIndex = unity_StereoEyeIndex;
@@ -181,7 +178,7 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         float4 posWS = mul(_ScreenToWorld[eyeIndex], float4(input.positionCS.xy, d, 1.0));
         posWS.xyz *= rcp(posWS.w);
 
-        InputData inputData = InputDataFromGbufferAndWorldPosition(gbuffer1, posWS.xyz);
+        InputData inputData = InputDataFromGbufferAndWorldPosition(gbuffer2, posWS.xyz);
 
         Light unityLight;
 
@@ -223,10 +220,10 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         half3 color = 0.0.xxx;
 
         #if defined(_LIT)
-            BRDFData brdfData = BRDFDataFromGbuffer(gbuffer0, gbuffer1);
+            BRDFData brdfData = BRDFDataFromGbuffer(gbuffer0, gbuffer1, gbuffer2);
             color = LightingPhysicallyBased(brdfData, unityLight, inputData.normalWS, inputData.viewDirectionWS, materialSpecularHighlightsOff);
         #elif defined(_SIMPLELIT)
-            SurfaceData surfaceData = SurfaceDataFromGbuffer(gbuffer0, gbuffer1, kLightingSimpleLit);
+            SurfaceData surfaceData = SurfaceDataFromGbuffer(gbuffer0, gbuffer1, gbuffer2, kLightingSimpleLit);
             half3 attenuatedLightColor = unityLight.color * (unityLight.distanceAttenuation * unityLight.shadowAttenuation);
             half3 diffuseColor = LightingLambert(attenuatedLightColor, unityLight.direction, inputData.normalWS);
             half3 specularColor = LightingSpecular(attenuatedLightColor, unityLight.direction, inputData.normalWS, inputData.viewDirectionWS, half4(surfaceData.specular, surfaceData.smoothness), surfaceData.smoothness);
@@ -252,7 +249,6 @@ Shader "Hidden/Universal Render Pipeline/StencilDeferred"
         float2 screen_uv = (input.screenUV.xy / input.screenUV.z);
         AmbientOcclusionFactor aoFactor = GetScreenSpaceAmbientOcclusion(screen_uv);
         half surfaceDataOcclusion = SAMPLE_TEXTURE2D_X_LOD(_GBuffer1, my_point_clamp_sampler, screen_uv, 0).a;
-        surfaceDataOcclusion = 1.0;
         // What we want is really to apply the mininum occlusion value between the baked occlusion from surfaceDataOcclusion and real-time occlusion from SSAO.
         // But we already applied the baked occlusion during gbuffer pass, so we have to cancel it out here.
         // We must also avoid divide-by-0 that the reciprocal can generate.

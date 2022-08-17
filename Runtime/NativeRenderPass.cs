@@ -260,10 +260,10 @@ namespace UnityEngine.Rendering.Universal
                     }
 
                     // TODO: this is redundant and is being setup for each attachment. Needs to be done only once per mergeable pass list (we need to make sure mergeable passes use the same depth!)
-                    m_ActiveDepthAttachmentDescriptor = new AttachmentDescriptor(SystemInfo.GetGraphicsFormat(DefaultFormat.DepthStencil));
-                    m_ActiveDepthAttachmentDescriptor.ConfigureTarget(pass.overrideCameraTarget ? pass.depthAttachment : m_CameraDepthTarget, (clearFlag & ClearFlag.DepthStencil) == 0, true);
+                    m_ActiveDepthAttachmentDescriptor = new AttachmentDescriptor(RenderTextureFormat.Depth);
+                    m_ActiveDepthAttachmentDescriptor.ConfigureTarget(pass.overrideCameraTarget ? pass.depthAttachment : m_CameraDepthTarget, (clearFlag & ClearFlag.Depth) == 0, true);
 
-                    if ((clearFlag & ClearFlag.DepthStencil) != 0)
+                    if ((clearFlag & ClearFlag.Depth) != 0)
                         m_ActiveDepthAttachmentDescriptor.ConfigureClear(Color.black, 1.0f, 0);
 
                     if (m_UseOptimizedStoreActions)
@@ -276,10 +276,10 @@ namespace UnityEngine.Rendering.Universal
 
         bool IsDepthOnlyRenderTexture(RenderTexture t)
         {
-            if (t.graphicsFormat == GraphicsFormat.None ||
+            if (t.graphicsFormat == GraphicsFormat.None // ||
 #pragma warning disable 0618 // Disable deprecation warnings. If you get here once these formats are really gone, the code in this #pragma can simply be removed
-                t.graphicsFormat == GraphicsFormat.DepthAuto ||
-                t.graphicsFormat == GraphicsFormat.ShadowAuto
+                // t.graphicsFormat == GraphicsFormat.DepthAuto ||
+                // t.graphicsFormat == GraphicsFormat.ShadowAuto
 #pragma warning restore 0618
             )
             {
@@ -324,7 +324,7 @@ namespace UnityEngine.Rendering.Universal
                             passColorAttachment = new RenderTargetIdentifier(cameraData.targetTexture);
                         else
                             passColorAttachment = renderPass.colorAttachment;
-                        currentAttachmentDescriptor = new AttachmentDescriptor(SystemInfo.GetGraphicsFormat(DefaultFormat.DepthStencil));
+                        currentAttachmentDescriptor = new AttachmentDescriptor(RenderTextureFormat.Depth);
                     }
                     else
                         currentAttachmentDescriptor =
@@ -354,7 +354,7 @@ namespace UnityEngine.Rendering.Universal
                         SetupInputAttachmentIndices(pass);
 
                     // TODO: this is redundant and is being setup for each attachment. Needs to be done only once per mergeable pass list (we need to make sure mergeable passes use the same depth!)
-                    m_ActiveDepthAttachmentDescriptor = new AttachmentDescriptor(SystemInfo.GetGraphicsFormat(DefaultFormat.DepthStencil));
+                    m_ActiveDepthAttachmentDescriptor = new AttachmentDescriptor(RenderTextureFormat.Depth);
                     m_ActiveDepthAttachmentDescriptor.ConfigureTarget(depthAttachmentTarget,
                         ((uint)finalClearFlag & (uint)ClearFlag.Depth) == 0, true);
 

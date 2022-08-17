@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine.Scripting.APIUpdating;
+using UnityEngine.Experimental.Rendering;
 
 namespace UnityEngine.Rendering.Universal
 {
@@ -124,11 +126,31 @@ namespace UnityEngine.Rendering.Universal
             get => m_DepthAttachment;
         }
 
-        /// <summary>
-        /// The input requirements for the <c>ScriptableRenderPass</c>, which has been set using <c>ConfigureInput</c>
-        /// </summary>
-        /// <seealso cref="ConfigureInput"/>
-        public ScriptableRenderPassInput input
+		public RenderBufferStoreAction[] colorStoreActions
+		{
+			get => m_ColorStoreActions;
+		}
+
+		public RenderBufferStoreAction depthStoreAction
+		{
+			get => m_DepthStoreAction;
+		}
+
+		internal bool[] overriddenColorStoreActions
+		{
+			get => m_OverriddenColorStoreActions;
+		}
+
+		internal bool overriddenDepthStoreAction
+		{
+			get => m_OverriddenDepthStoreAction;
+		}
+
+		/// <summary>
+		/// The input requirements for the <c>ScriptableRenderPass</c>, which has been set using <c>ConfigureInput</c>
+		/// </summary>
+		/// <seealso cref="ConfigureInput"/>
+		public ScriptableRenderPassInput input
         {
             get => m_Input;
         }
@@ -143,12 +165,38 @@ namespace UnityEngine.Rendering.Universal
             get => m_ClearColor;
         }
 
-        /// A ProfilingSampler for the entire pass. Used by higher level objects such as ScriptableRenderer etc.
-        protected internal ProfilingSampler profilingSampler { get; set; }
+		RenderBufferStoreAction[] m_ColorStoreActions = new RenderBufferStoreAction[] { RenderBufferStoreAction.Store };
+		RenderBufferStoreAction m_DepthStoreAction = RenderBufferStoreAction.Store;
+
+		// by default all store actions are Store. The overridden flags are used to keep track of explicitly requested store actions, to
+		// help figuring out the correct final store action for merged render passes when using the RenderPass API.
+		private bool[] m_OverriddenColorStoreActions = new bool[] { false };
+		private bool m_OverriddenDepthStoreAction = false;
+
+		/// A ProfilingSampler for the entire pass. Used by higher level objects such as ScriptableRenderer etc.
+		protected internal ProfilingSampler profilingSampler { get; set; }
         internal bool overrideCameraTarget { get; set; }
         internal bool isBlitRenderPass { get; set; }
 
+		internal bool useNativeRenderPass { get; set; }
+
+		internal int renderTargetWidth { get; set; }
+		internal int renderTargetHeight { get; set; }
+		internal int renderTargetSampleCount { get; set; }
+
+        internal bool depthOnly { get; set; }
+        // this flag is updated each frame to keep track of which pass is the last for the current camera
+        internal bool isLastPass { get; set; }
+		// index to track the position in the current frame
+		internal int renderPassQueueIndex { get; set; }
+
+		internal NativeArray<int> m_ColorAttachmentIndices;
+		internal NativeArray<int> m_InputAttachmentIndices;
+
+        internal GraphicsFormat[] renderTargetFormat { get; set; }
         RenderTargetIdentifier[] m_ColorAttachments = new RenderTargetIdentifier[]{BuiltinRenderTextureType.CameraTarget};
+        internal RenderTargetIdentifier[] m_InputAttachments = new RenderTargetIdentifier[8];
+        internal bool[] m_InputAttachmentIsTransient = new bool[8];
         RenderTargetIdentifier m_DepthAttachment = BuiltinRenderTextureType.CameraTarget;
         ScriptableRenderPassInput m_Input = ScriptableRenderPassInput.None;
         ClearFlag m_ClearFlag = ClearFlag.None;
@@ -177,14 +225,19 @@ namespace UnityEngine.Rendering.Universal
             m_Input = passInput;
         }
 
-        /// <summary>
-        /// Configures render targets for this render pass. Call this instead of CommandBuffer.SetRenderTarget.
-        /// This method should be called inside Configure.
-        /// </summary>
-        /// <param name="colorAttachment">Color attachment identifier.</param>
-        /// <param name="depthAttachment">Depth attachment identifier.</param>
-        /// <seealso cref="Configure"/>
-        public void ConfigureTarget(RenderTargetIdentifier colorAttachment, RenderTargetIdentifier depthAttachment)
+		internal bool IsInputAttachmentTransient(int idx)
+		{
+			return m_InputAttachmentIsTransient[idx];
+		}
+
+		/// <summary>
+		/// Configures render targets for this render pass. Call this instead of CommandBuffer.SetRenderTarget.
+		/// This method should be called inside Configure.
+		/// </summary>
+		/// <param name="colorAttachment">Color attachment identifier.</param>
+		/// <param name="depthAttachment">Depth attachment identifier.</param>
+		/// <seealso cref="Configure"/>
+		public void ConfigureTarget(RenderTargetIdentifier colorAttachment, RenderTargetIdentifier depthAttachment)
         {
             m_DepthAttachment = depthAttachment;
             ConfigureTarget(colorAttachment);

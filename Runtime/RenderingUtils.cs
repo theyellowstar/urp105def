@@ -21,7 +21,16 @@ namespace UnityEngine.Rendering.Universal
             new ShaderTagId("VertexLM"),
         };
 
-        static Mesh s_FullscreenMesh = null;
+		static AttachmentDescriptor s_EmptyAttachment = new AttachmentDescriptor(GraphicsFormat.None);
+		internal static AttachmentDescriptor emptyAttachment
+		{
+			get
+			{
+				return s_EmptyAttachment;
+			}
+		}
+
+		static Mesh s_FullscreenMesh = null;
 
         /// <summary>
         /// Returns a mesh that you can use with <see cref="CommandBuffer.DrawMesh(Mesh, Matrix4x4, Material)"/> to render full-screen effects.

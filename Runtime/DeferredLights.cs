@@ -233,6 +233,17 @@ namespace UnityEngine.Rendering.Universal.Internal
             public int instanceCount;
         }
 
+        static readonly string[] k_GBufferNames = new string[]
+        {
+            "_GBuffer0",
+            "_GBuffer1",
+            "_GBuffer2",
+            "_GBuffer3",
+            "_GBuffer4",
+            "_GBuffer5",
+            "_GBuffer6"
+        };
+
         static readonly string k_SetupLights = "SetupLights";
         static readonly string k_DeferredPass = "Deferred Pass";
         static readonly string k_TileDepthInfo = "Tile Depth Info";
@@ -293,6 +304,8 @@ namespace UnityEngine.Rendering.Universal.Internal
         internal bool UseRenderPass { get; set; }
         //
         internal bool HasDepthPrepass { get; set; }
+        //
+        internal bool HasNormalPrepass { get; set; }
         // This is an overlay camera being rendered.
         internal bool IsOverlay { get; set; }
         //
@@ -678,32 +691,57 @@ namespace UnityEngine.Rendering.Universal.Internal
             // Find the mixed lighting mode. This is the same logic as ForwardLights.
             this.MixedLightingSetup = MixedLightingSetup.None;
 
-            if (!renderingData.lightData.supportsMixedLighting)
-                return;
-
-            NativeArray<VisibleLight> visibleLights = renderingData.lightData.visibleLights;
-            for (int lightIndex = 0; lightIndex < renderingData.lightData.visibleLights.Length && this.MixedLightingSetup == MixedLightingSetup.None; ++lightIndex)
-            {
-                Light light = visibleLights[lightIndex].light;
-
-                // TODO: Add support to shadow mask
-                if (light != null
-                 && light.bakingOutput.lightmapBakeType == LightmapBakeType.Mixed
-                 && light.shadows != LightShadows.None)
+#if !UNITY_EDITOR
+            // This flag is used to strip mixed lighting shader variants when a player is built.
+            // All shader variants are available in the editor.
+            if (renderingData.lightData.supportsMixedLighting)
+#endif
+			{
+                NativeArray<VisibleLight> visibleLights = renderingData.lightData.visibleLights;
+                for (int lightIndex = 0; lightIndex < renderingData.lightData.visibleLights.Length && this.MixedLightingSetup == MixedLightingSetup.None; ++lightIndex)
                 {
-                    switch (light.bakingOutput.mixedLightingMode)
+                    Light light = visibleLights[lightIndex].light;
+
+                    // TODO: Add support to shadow mask
+                    if (light != null
+                     && light.bakingOutput.lightmapBakeType == LightmapBakeType.Mixed
+                     && light.shadows != LightShadows.None)
                     {
-                        case MixedLightingMode.Subtractive:
-                            this.MixedLightingSetup = MixedLightingSetup.Subtractive;
-                            break;
-                        case MixedLightingMode.Shadowmask:
-                            this.MixedLightingSetup = MixedLightingSetup.ShadowMask;
-                            break;
+                        switch (light.bakingOutput.mixedLightingMode)
+                        {
+                            case MixedLightingMode.Subtractive:
+                                this.MixedLightingSetup = MixedLightingSetup.Subtractive;
+                                break;
+                            case MixedLightingMode.Shadowmask:
+                                this.MixedLightingSetup = MixedLightingSetup.ShadowMask;
+                                break;
+                        }
                     }
                 }
             }
             // Once the mixed lighting mode has been discovered, we know how  many MRTs we need for the gbuffer.
             // Subtractive mixed lighting requires shadowMask output, which is actually used to store unity_ProbesOcclusion values.
+
+            CreateGbufferAttachments();
+        }
+
+        // In cases when custom pass is injected between GBuffer and Deferred passes we need to fallback
+        // To non-renderpass path in the middle of setup, which means recreating the gbuffer attachments as well due to GBuffer4 used for RenderPass
+        internal void DisableFramebufferFetchInput()
+        {
+            this.UseRenderPass = false;
+            CreateGbufferAttachments();
+        }
+
+        internal void CreateGbufferAttachments()
+        {
+            int gbufferSliceCount = this.GBufferSliceCount;
+            if (this.GbufferAttachments == null || this.GbufferAttachments.Length != gbufferSliceCount)
+            {
+                this.GbufferAttachments = new RenderTargetHandle[gbufferSliceCount];
+                for (int i = 0; i < gbufferSliceCount; ++i)
+                    this.GbufferAttachments[i].Init(k_GBufferNames[i]);
+            }
         }
 
         public bool IsRuntimeSupportedThisFrame()
@@ -716,6 +754,7 @@ namespace UnityEngine.Rendering.Universal.Internal
         public void Setup(ref RenderingData renderingData,
             AdditionalLightsShadowCasterPass additionalLightsShadowCasterPass,
             bool hasDepthPrepass,
+            bool hasNormalPrepass,
             bool isOverlay,
             RenderTargetHandle depthCopyTexture,
             RenderTargetHandle depthInfoTexture,
@@ -725,6 +764,7 @@ namespace UnityEngine.Rendering.Universal.Internal
         {
             m_AdditionalLightsShadowCasterPass = additionalLightsShadowCasterPass;
             this.HasDepthPrepass = hasDepthPrepass;
+            this.HasNormalPrepass = hasNormalPrepass;
             this.IsOverlay = isOverlay;
 
             this.DepthCopyTexture = depthCopyTexture;

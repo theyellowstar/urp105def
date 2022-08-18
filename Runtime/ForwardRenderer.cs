@@ -437,10 +437,10 @@ namespace UnityEngine.Rendering.Universal
 
             if (this.actualRenderingMode == RenderingMode.Deferred)
 			{
-                // if (m_DeferredLights.UseRenderPass && (RenderPassEvent.AfterRenderingGbuffer == renderPassInputs.requiresDepthNormalAtEvent || !useRenderPassEnabled))
-                    // m_DeferredLights.DisableFramebufferFetchInput();
+                if (m_DeferredLights.UseRenderPass && (/*RenderPassEvent.AfterRenderingGbuffer == renderPassInputs.requiresDepthNormalAtEvent*/true || !useRenderPassEnabled))
+                    m_DeferredLights.DisableFramebufferFetchInput();
 
-                EnqueueDeferred(ref renderingData, requiresDepthPrepass, mainLightShadows, additionalLightShadows);
+                EnqueueDeferred(ref renderingData, requiresDepthPrepass, renderPassInputs.requiresNormalsTexture, mainLightShadows, additionalLightShadows);
             }
             else
                 EnqueuePass(m_RenderOpaqueForwardPass);
@@ -637,7 +637,7 @@ namespace UnityEngine.Rendering.Universal
             }
         }
 
-        void EnqueueDeferred(ref RenderingData renderingData, bool hasDepthPrepass, bool applyMainShadow, bool applyAdditionalShadow)
+        void EnqueueDeferred(ref RenderingData renderingData, bool hasDepthPrepass, bool hasNormalPrepass, bool applyMainShadow, bool applyAdditionalShadow)
         {
             // the last slice is the lighting buffer created in DeferredRenderer.cs
             m_GBufferHandles[(int)DeferredLights.GBufferHandles.Lighting] = m_ActiveCameraColorAttachment;
@@ -646,6 +646,7 @@ namespace UnityEngine.Rendering.Universal
                 ref renderingData,
                 applyAdditionalShadow ? m_AdditionalLightsShadowCasterPass : null,
                 hasDepthPrepass,
+                hasNormalPrepass,
                 renderingData.cameraData.renderType == CameraRenderType.Overlay,
                 m_DepthTexture,
                 m_DepthInfoTexture,

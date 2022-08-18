@@ -40,6 +40,8 @@ struct GrassVertexOutput
 
 void InitializeInputData(GrassVertexOutput input, out InputData inputData)
 {
+    inputData = (InputData)0;
+
     inputData.positionWS = input.posWSShininess.xyz;
 
     half3 viewDirWS = input.viewDir;

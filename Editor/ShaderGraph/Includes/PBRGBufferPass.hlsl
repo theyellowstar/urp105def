@@ -1,6 +1,10 @@
 void BuildInputData(Varyings input, SurfaceDescription surfaceDescription, out InputData inputData)
 {
+    inputData = (InputData)0;
+
     inputData.positionWS = input.positionWS;
+    inputData.positionCS = input.positionCS;
+
     #ifdef _NORMALMAP
 
         #if _NORMAL_DROPOFF_TS

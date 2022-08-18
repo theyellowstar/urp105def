@@ -250,6 +250,7 @@ Shader "Hidden/TerrainEngine/Details/UniversalPipeline/Vertexlit"
 
                 InputData inputData = (InputData)0;
                 inputData.normalWS = half3(0, 1, 0); // need some default to avoid division by 0.
+                inputData.positionCS = input.PositionCS;
 
                 return SurfaceDataToGbuffer(surfaceData, inputData, color.rgb, kLightingInvalid);
             }

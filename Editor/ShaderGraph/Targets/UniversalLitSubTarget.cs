@@ -684,6 +684,7 @@ static class LitDefines
                 { CoreKeywordDescriptors.ShadowsSoft },
                 { CoreKeywordDescriptors.MixedLightingSubtractive },
                 { CoreKeywordDescriptors.ShadowsShadowmask },
+                { CoreKeywordDescriptors.RenderPassEnabled },
                 { GBufferNormalsOct },
             };
 

@@ -224,8 +224,64 @@ namespace UnityEngine.Rendering.Universal
         {
             m_Input = passInput;
         }
+        /// <summary>
+        /// Configures the Store Action for a color attachment of this render pass.
+        /// </summary>
+        /// <param name="storeAction">RenderBufferStoreAction to use</param>
+        /// <param name="attachmentIndex">Index of the color attachment</param>
+        public void ConfigureColorStoreAction(RenderBufferStoreAction storeAction, uint attachmentIndex = 0)
+        {
+            m_ColorStoreActions[attachmentIndex] = storeAction;
+            m_OverriddenColorStoreActions[attachmentIndex] = true;
+        }
 
-		internal bool IsInputAttachmentTransient(int idx)
+        /// <summary>
+        /// Configures the Store Actions for all the color attachments of this render pass.
+        /// </summary>
+        /// <param name="storeActions">Array of RenderBufferStoreActions to use</param>
+        public void ConfigureColorStoreActions(RenderBufferStoreAction[] storeActions)
+        {
+            int count = Math.Min(storeActions.Length, m_ColorStoreActions.Length);
+            for (uint i = 0; i < count; ++i)
+            {
+                m_ColorStoreActions[i] = storeActions[i];
+                m_OverriddenColorStoreActions[i] = true;
+            }
+        }
+
+        /// <summary>
+        /// Configures the Store Action for the depth attachment of this render pass.
+        /// </summary>
+        /// <param name="storeAction">RenderBufferStoreAction to use</param>
+        public void ConfigureDepthStoreAction(RenderBufferStoreAction storeAction)
+        {
+            m_DepthStoreAction = storeAction;
+            m_OverriddenDepthStoreAction = true;
+        }
+
+        internal void ConfigureInputAttachments(RenderTargetIdentifier input, bool isTransient = false)
+        {
+            m_InputAttachments[0] = input;
+            m_InputAttachmentIsTransient[0] = isTransient;
+        }
+
+        internal void ConfigureInputAttachments(RenderTargetIdentifier[] inputs)
+        {
+            m_InputAttachments = inputs;
+        }
+
+        internal void ConfigureInputAttachments(RenderTargetIdentifier[] inputs, bool[] isTransient)
+        {
+            ConfigureInputAttachments(inputs);
+            m_InputAttachmentIsTransient = isTransient;
+        }
+
+        internal void SetInputAttachmentTransient(int idx, bool isTransient)
+        {
+            m_InputAttachmentIsTransient[idx] = isTransient;
+        }
+
+        internal bool IsInputAttachmentTransient(int idx)
 		{
 			return m_InputAttachmentIsTransient[idx];
 		}

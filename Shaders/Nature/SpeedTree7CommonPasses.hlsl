@@ -85,7 +85,10 @@ struct SpeedTreeVertexDepthNormalOutput
 
 void InitializeInputData(SpeedTreeVertexOutput input, half3 normalTS, out InputData inputData)
 {
+    inputData = (InputData)0;
+
     inputData.positionWS = input.positionWS.xyz;
+    inputData.positionCS = input.clipPos;
 
     #ifdef EFFECT_BUMP
         inputData.normalWS = TransformTangentToWorld(normalTS, half3x3(input.tangentWS.xyz, input.bitangentWS.xyz, input.normalWS.xyz));

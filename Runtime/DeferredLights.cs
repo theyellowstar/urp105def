@@ -259,13 +259,15 @@ namespace UnityEngine.Rendering.Universal.Internal
             Count = 6
         }
 
-        internal int GbufferDepthIndex { get { return UseRenderPass ? 0 : -1; } }
-        internal int GBufferAlbedoIndex { get { return GbufferDepthIndex + 1; } }
-        internal int GBufferSpecularMetallicIndex { get { return GBufferAlbedoIndex + 1; } }
-        internal int GBufferNormalSmoothnessIndex { get { return GBufferSpecularMetallicIndex + 1; } }
-        internal int GBufferLightingIndex { get { return GBufferNormalSmoothnessIndex + 1; } }
-        internal int GBufferShadowMask { get { return UseShadowMask ? GBufferLightingIndex + 1 : -1; } }
-        internal int GBufferSliceCount { get { return 4 + (UseRenderPass ? 1 : 0) + (UseShadowMask ? 1 : 0); } }
+        internal int GBufferAlbedoIndex { get { return 0; } }
+        internal int GBufferSpecularMetallicIndex { get { return 1; } }
+        internal int GBufferNormalSmoothnessIndex { get { return 2; } }
+        internal int GBufferLightingIndex { get { return 3; } }
+        internal int GbufferDepthIndex { get { return UseRenderPass ? GBufferLightingIndex + 1 : -1; } }
+        internal int GBufferShadowMask { get { return UseShadowMask ? GBufferLightingIndex + (UseRenderPass ? 1 : 0) + 1 : -1; } }
+        // internal int GBufferRenderingLayers { get { return UseRenderingLayers ? GBufferLightingIndex + (UseRenderPass ? 1 : 0) + (UseShadowMask ? 1 : 0) + 1 : -1; } }
+        // Color buffer count (not including dephStencil).
+        internal int GBufferSliceCount { get { return 4 + (UseRenderPass ? 1 : 0) + (UseShadowMask ? 1 : 0) + (/*UseRenderingLayers ? 1 :*/ 0); } }
 
         internal GraphicsFormat GetGBufferFormat(int index)
         {
@@ -308,6 +310,8 @@ namespace UnityEngine.Rendering.Universal.Internal
 
         // Output lighting result.
         internal RenderTargetHandle[] GbufferAttachments { get; set; }
+        internal RenderTargetIdentifier[] DeferredInputAttachments { get; set; }
+        internal bool[] DeferredInputIsTransient { get; set; }
         // Input depth texture, also bound as read-only RT
         internal RenderTargetHandle DepthAttachment { get; set; }
         //
@@ -375,7 +379,8 @@ namespace UnityEngine.Rendering.Universal.Internal
         ProfilingSampler m_ProfilingSamplerClearStencilPartialPass = new ProfilingSampler(k_ClearStencilPartial);
 
 
-        internal DeferredLights(Material tileDepthInfoMaterial, Material tileDeferredMaterial, Material stencilDeferredMaterial)
+        internal DeferredLights(Material tileDepthInfoMaterial, Material tileDeferredMaterial, Material stencilDeferredMaterial,
+            bool useNativeRenderPass = false)
         {
             // Cache result for GL platform here. SystemInfo properties are in C++ land so repeated access will be unecessary penalized.
             // They can also only be called from main thread!
@@ -447,6 +452,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             this.AccurateGbufferNormals = true;
             this.TiledDeferredShading = true;
             this.UseJobSystem = true;
+            this.UseRenderPass = useNativeRenderPass;
             m_HasTileVisLights = false;
         }
 
@@ -529,6 +535,8 @@ namespace UnityEngine.Rendering.Universal.Internal
                     CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.LightmapShadowMixing, isSubtractive || isShadowMaskAlways);
                     CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.ShadowsShadowMask, isShadowMask);
                     CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.MixedLightingSubtractive, isSubtractive); // Backward compatibility
+                    // This should be moved to a more global scope when framebuffer fetch is introduced to more passes
+                    CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.RenderPassEnabled, this.UseRenderPass && renderingData.cameraData.cameraType == CameraType.Game);
                 }
 
                 context.ExecuteCommandBuffer(cmd);
@@ -743,6 +751,18 @@ namespace UnityEngine.Rendering.Universal.Internal
                 this.GbufferAttachmentIdentifiers = new RenderTargetIdentifier[this.GbufferAttachments.Length];
             for (int i = 0; i < this.GbufferAttachments.Length; ++i)
                 this.GbufferAttachmentIdentifiers[i] = this.GbufferAttachments[i].Identifier();
+            if (this.DeferredInputAttachments == null && this.UseRenderPass && this.GbufferAttachments.Length >= 5)
+            {
+                this.DeferredInputAttachments = new RenderTargetIdentifier[4]
+                {
+                    this.GbufferAttachmentIdentifiers[0], this.GbufferAttachmentIdentifiers[1],
+                    this.GbufferAttachmentIdentifiers[2], this.GbufferAttachmentIdentifiers[4]
+                };
+                this.DeferredInputIsTransient = new bool[4]
+                {
+                    true, true, true, false
+                };
+            }
             this.DepthAttachmentIdentifier = depthAttachment.Identifier();
 
 #if ENABLE_VR && ENABLE_XR_MODULE

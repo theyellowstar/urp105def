@@ -126,6 +126,7 @@ Shader "Universal Render Pipeline/Nature/SpeedTree8"
             #pragma multi_compile_vertex LOD_FADE_PERCENTAGE
             #pragma multi_compile __ LOD_FADE_CROSSFADE
             #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
+            #pragma multi_compile_fragment _ _RENDER_PASS_ENABLED
 
             #pragma multi_compile_instancing
             #pragma instancing_options assumeuniformscaling maxcount:50

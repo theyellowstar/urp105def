@@ -785,6 +785,16 @@ namespace UnityEditor.Rendering.Universal.ShaderGraph
             scope = KeywordScope.Global,
         };
 
+        public static readonly KeywordDescriptor RenderPassEnabled = new KeywordDescriptor()
+        {
+            displayName = "Render Pass Enabled",
+            referenceName = "_RENDER_PASS_ENABLED",
+            type = KeywordType.Boolean,
+            definition = KeywordDefinition.MultiCompile,
+            scope = KeywordScope.Global,
+            // stages = KeywordShaderStage.Fragment,
+        };
+
         public static readonly KeywordDescriptor SmoothnessChannel = new KeywordDescriptor()
         {
             displayName = "Smoothness Channel",

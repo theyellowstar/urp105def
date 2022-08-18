@@ -13,6 +13,21 @@
 #define USE_SHADOWMASK 0
 #endif
 
+#if _RENDER_PASS_ENABLED
+#define GBUFFER_OPTIONAL_SLOT_1 GBuffer4
+#define GBUFFER_OPTIONAL_SLOT_1_TYPE float
+#if USE_SHADOWMASK
+#define GBUFFER_OPTIONAL_SLOT_2 GBuffer5
+#define GBUFFER_SHADOWMASK GBuffer5
+#endif //#if OUTPUT_SHADOWMASK
+#else
+#define GBUFFER_OPTIONAL_SLOT_1_TYPE half4
+#if USE_SHADOWMASK
+#define GBUFFER_OPTIONAL_SLOT_1 GBuffer4
+#define GBUFFER_SHADOWMASK GBuffer4
+#endif //#if OUTPUT_SHADOWMASK
+#endif //#if _RENDER_PASS_ENABLED
+
 #define kLightingInvalid  -1  // No dynamic lighting: can aliase any other material type as they are skipped using stencil
 #define kLightingSimpleLit 2  // Simple lit shader
 // clearcoat 3
@@ -32,8 +47,15 @@ struct FragmentOutput
     half4 GBuffer1 : SV_Target1;
     half4 GBuffer2 : SV_Target2;
     half4 GBuffer3 : SV_Target3; // Camera color attachment
-    #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
-    half4 GBuffer4 : SV_Target4;
+
+    #ifdef GBUFFER_OPTIONAL_SLOT_1
+    GBUFFER_OPTIONAL_SLOT_1_TYPE GBuffer4 : SV_Target4;
+    #endif
+    #ifdef GBUFFER_OPTIONAL_SLOT_2
+    half4 GBuffer5 : SV_Target5;
+    #endif
+    #ifdef GBUFFER_OPTIONAL_SLOT_3
+    half4 GBuffer6 : SV_Target6;
     #endif
 };
 
@@ -89,8 +111,11 @@ FragmentOutput SurfaceDataToGbuffer(SurfaceData surfaceData, InputData inputData
     output.GBuffer1 = half4(surfaceData.specular.rgb, surfaceData.occlusion);                                // specular        specular        specular        [unused]        (sRGB rendertarget)
     output.GBuffer2 = half4(packedNormalWS, packedSmoothness);                           // encoded-normal  encoded-normal  encoded-normal  packed-smoothness
     output.GBuffer3 = half4(globalIllumination, 0);                                      // GI              GI              GI              [not_available] (lighting buffer)
-    #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
-    output.GBuffer4 = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
+    #if _RENDER_PASS_ENABLED
+    output.GBuffer4 = inputData.positionCS.z;
+    #endif
+    #if OUTPUT_SHADOWMASK
+    output.GBUFFER_SHADOWMASK = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
     #endif
 
     return output;
@@ -172,8 +197,11 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
     output.GBuffer1 = half4(specular, occlusion);                        // specular        specular        specular        occlusion    (sRGB rendertarget)
     output.GBuffer2 = half4(packedNormalWS, packedSmoothness);                       // encoded-normal  encoded-normal  encoded-normal  smoothness
     output.GBuffer3 = half4(globalIllumination, 0);                                  // GI              GI              GI              [not_available] (lighting buffer)
-    #if defined(_MIXED_LIGHTING_SUBTRACTIVE) || defined(SHADOWS_SHADOWMASK)
-    output.GBuffer4 = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
+    #if _RENDER_PASS_ENABLED
+    output.GBuffer4 = inputData.positionCS.z;
+    #endif
+    #if OUTPUT_SHADOWMASK
+    output.GBUFFER_SHADOWMASK = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
     #endif
 
     return output;

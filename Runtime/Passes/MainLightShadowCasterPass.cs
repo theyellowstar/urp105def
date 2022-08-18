@@ -112,6 +112,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             }
 
             m_MaxShadowDistance = renderingData.cameraData.maxShadowDistance * renderingData.cameraData.maxShadowDistance;
+            useNativeRenderPass = true;
 
             return true;
         }

@@ -206,12 +206,29 @@ namespace UnityEngine.Rendering.Universal
         {
             renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
             m_ColorAttachments = new RenderTargetIdentifier[]{BuiltinRenderTextureType.CameraTarget, 0, 0, 0, 0, 0, 0, 0};
+            m_InputAttachments = new RenderTargetIdentifier[] { -1, -1, -1, -1, -1, -1, -1, -1 };
+            m_InputAttachmentIsTransient = new bool[] { false, false, false, false, false, false, false, false };
             m_DepthAttachment = BuiltinRenderTextureType.CameraTarget;
+            m_ColorStoreActions = new RenderBufferStoreAction[] { RenderBufferStoreAction.Store, 0, 0, 0, 0, 0, 0, 0 };
+            m_DepthStoreAction = RenderBufferStoreAction.Store;
+            m_OverriddenColorStoreActions = new bool[] { false, false, false, false, false, false, false, false };
+            m_OverriddenDepthStoreAction = false;
             m_ClearFlag = ClearFlag.None;
             m_ClearColor = Color.black;
             overrideCameraTarget = false;
             isBlitRenderPass = false;
             profilingSampler = new ProfilingSampler(nameof(ScriptableRenderPass));
+            useNativeRenderPass = true;
+            renderTargetWidth = -1;
+            renderTargetHeight = -1;
+            renderTargetSampleCount = -1;
+            renderPassQueueIndex = -1;
+            renderTargetFormat = new GraphicsFormat[]
+            {
+                GraphicsFormat.None, GraphicsFormat.None, GraphicsFormat.None,
+                GraphicsFormat.None, GraphicsFormat.None, GraphicsFormat.None, GraphicsFormat.None, GraphicsFormat.None
+            };
+            depthOnly = false;
         }
 
         /// <summary>

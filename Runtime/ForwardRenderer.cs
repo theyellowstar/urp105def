@@ -437,7 +437,12 @@ namespace UnityEngine.Rendering.Universal
 
             if (this.actualRenderingMode == RenderingMode.Deferred)
 			{
-                if (m_DeferredLights.UseRenderPass && (/*RenderPassEvent.AfterRenderingGbuffer == renderPassInputs.requiresDepthNormalAtEvent*/true || !useRenderPassEnabled))
+                if (m_DeferredLights.UseRenderPass &&
+                    // Bwtween GBuffer pass
+                    ((RenderPassEvent.BeforeRenderingOpaques <= renderPassInputs.requiresDepthNormalAtEvent
+                    // and Deferred pass
+                    && renderPassInputs.requiresDepthNormalAtEvent <= RenderPassEvent.BeforeRenderingOpaques + 5)
+                        || !useRenderPassEnabled))
                     m_DeferredLights.DisableFramebufferFetchInput();
 
                 EnqueueDeferred(ref renderingData, requiresDepthPrepass, renderPassInputs.requiresNormalsTexture, mainLightShadows, additionalLightShadows);
@@ -698,11 +703,14 @@ namespace UnityEngine.Rendering.Universal
             internal bool requiresDepthPrepass;
             internal bool requiresNormalsTexture;
             internal bool requiresColorTexture;
+            internal RenderPassEvent requiresDepthNormalAtEvent;
         }
 
         private RenderPassInputSummary GetRenderPassInputs(ref RenderingData renderingData)
         {
             RenderPassInputSummary inputSummary = new RenderPassInputSummary();
+            // Yellowstar: Not sure. Modified from Unity2020: "inputSummary.requiresDepthNormalAtEvent = RenderPassEvent.BeforeRenderingOpaques"
+            inputSummary.requiresDepthNormalAtEvent = RenderPassEvent.AfterRendering;
             for (int i = 0; i < activeRenderPassQueue.Count; ++i)
             {
                 ScriptableRenderPass pass = activeRenderPassQueue[i];
@@ -715,6 +723,9 @@ namespace UnityEngine.Rendering.Universal
                 inputSummary.requiresDepthPrepass   |= needsNormals || needsDepth && eventBeforeOpaque;
                 inputSummary.requiresNormalsTexture |= needsNormals;
                 inputSummary.requiresColorTexture   |= needsColor;
+
+                if (needsNormals || needsDepth)
+                    inputSummary.requiresDepthNormalAtEvent = (RenderPassEvent)Mathf.Min((int)pass.renderPassEvent, (int)inputSummary.requiresDepthNormalAtEvent);
             }
 
             return inputSummary;

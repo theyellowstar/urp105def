@@ -228,6 +228,8 @@ namespace UnityEngine.Rendering.Universal.Internal
                 sliceIndex++;
             }
 
+            useNativeRenderPass = true;
+
             return true;
         }
 

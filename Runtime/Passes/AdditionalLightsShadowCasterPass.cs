@@ -28,9 +28,6 @@ namespace UnityEngine.Rendering.Universal.Internal
         private RenderTargetHandle m_AdditionalLightsShadowmap;
         RenderTexture m_AdditionalLightsShadowmapTexture;
 
-        int m_ShadowmapWidth;
-        int m_ShadowmapHeight;
-
         ShadowSliceData[] m_AdditionalLightSlices = null;
 
         // Shader data for UBO path
@@ -82,8 +79,8 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             Clear();
 
-            m_ShadowmapWidth = renderingData.shadowData.additionalLightsShadowmapWidth;
-            m_ShadowmapHeight = renderingData.shadowData.additionalLightsShadowmapHeight;
+            renderTargetWidth = renderingData.shadowData.additionalLightsShadowmapWidth;
+            renderTargetHeight = renderingData.shadowData.additionalLightsShadowmapHeight;
 
             var visibleLights = renderingData.lightData.visibleLights;
             int additionalLightsCount = renderingData.lightData.additionalLightsCount;
@@ -191,13 +188,13 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             // In the UI we only allow for square shadow map atlas. Here we check if we can fit
             // all shadow slices into half resolution of the atlas and adjust height to have tighter packing.
-            int maximumSlices = (m_ShadowmapWidth / sliceResolution) * (m_ShadowmapHeight / sliceResolution);
+            int maximumSlices = (renderTargetWidth / sliceResolution) * (renderTargetHeight / sliceResolution);
             if (validShadowCastingLights <= (maximumSlices / 2))
-                m_ShadowmapHeight /= 2;
+                renderTargetHeight /= 2;
 
             int shadowSlicesPerRow = (atlasWidth / sliceResolution);
-            float oneOverAtlasWidth = 1.0f / m_ShadowmapWidth;
-            float oneOverAtlasHeight = 1.0f / m_ShadowmapHeight;
+            float oneOverAtlasWidth = 1.0f / renderTargetWidth;
+            float oneOverAtlasHeight = 1.0f / renderTargetHeight;
 
             int sliceIndex = 0;
             int shadowCastingLightsBufferCount = m_AdditionalShadowCastingLightIndices.Count;
@@ -228,6 +225,7 @@ namespace UnityEngine.Rendering.Universal.Internal
                 sliceIndex++;
             }
 
+            m_AdditionalLightsShadowmapTexture = ShadowUtils.GetTemporaryShadowTexture(renderTargetWidth, renderTargetHeight, k_ShadowmapBufferBits);
             useNativeRenderPass = true;
 
             return true;
@@ -235,8 +233,8 @@ namespace UnityEngine.Rendering.Universal.Internal
 
         public override void Configure(CommandBuffer cmd, RenderTextureDescriptor cameraTextureDescriptor)
         {
-            m_AdditionalLightsShadowmapTexture = ShadowUtils.GetTemporaryShadowTexture(m_ShadowmapWidth, m_ShadowmapHeight, k_ShadowmapBufferBits);
-            ConfigureTarget(new RenderTargetIdentifier(m_AdditionalLightsShadowmapTexture));
+            // m_AdditionalLightsShadowmapTexture = ShadowUtils.GetTemporaryShadowTexture(renderTargetWidth, renderTargetHeight, k_ShadowmapBufferBits);
+            ConfigureTarget(new RenderTargetIdentifier(m_AdditionalLightsShadowmapTexture), /*m_AdditionalLightsShadowmapTexture.depthStencilFormat*/m_AdditionalLightsShadowmapTexture.graphicsFormat, renderTargetWidth, renderTargetHeight, 1, true);
             ConfigureClear(ClearFlag.All, Color.black);
         }
 

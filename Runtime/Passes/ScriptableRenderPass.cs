@@ -302,18 +302,23 @@ namespace UnityEngine.Rendering.Universal
 		{
 			return m_InputAttachmentIsTransient[idx];
 		}
-
-		/// <summary>
-		/// Configures render targets for this render pass. Call this instead of CommandBuffer.SetRenderTarget.
-		/// This method should be called inside Configure.
-		/// </summary>
-		/// <param name="colorAttachment">Color attachment identifier.</param>
-		/// <param name="depthAttachment">Depth attachment identifier.</param>
-		/// <seealso cref="Configure"/>
-		public void ConfigureTarget(RenderTargetIdentifier colorAttachment, RenderTargetIdentifier depthAttachment)
+        /// <summary>
+        /// Configures render targets for this render pass. Call this instead of CommandBuffer.SetRenderTarget.
+        /// This method should be called inside Configure.
+        /// </summary>
+        /// <param name="colorAttachment">Color attachment identifier.</param>
+        /// <param name="depthAttachment">Depth attachment identifier.</param>
+        /// <seealso cref="Configure"/>
+        public void ConfigureTarget(RenderTargetIdentifier colorAttachment, RenderTargetIdentifier depthAttachment)
         {
             m_DepthAttachment = depthAttachment;
             ConfigureTarget(colorAttachment);
+        }
+
+        internal void ConfigureTarget(RenderTargetIdentifier colorAttachment, RenderTargetIdentifier depthAttachment, GraphicsFormat format)
+        {
+            m_DepthAttachment = depthAttachment;
+            ConfigureTarget(colorAttachment, format);
         }
 
         /// <summary>
@@ -328,7 +333,7 @@ namespace UnityEngine.Rendering.Universal
             overrideCameraTarget = true;
 
             uint nonNullColorBuffers = RenderingUtils.GetValidColorBufferCount(colorAttachments);
-            if( nonNullColorBuffers > SystemInfo.supportedRenderTargetCount)
+            if (nonNullColorBuffers > SystemInfo.supportedRenderTargetCount)
                 Debug.LogError("Trying to set " + nonNullColorBuffers + " renderTargets, which is more than the maximum supported:" + SystemInfo.supportedRenderTargetCount);
 
             m_ColorAttachments = colorAttachments;
@@ -355,6 +360,24 @@ namespace UnityEngine.Rendering.Universal
             m_ColorAttachments[0] = colorAttachment;
             for (int i = 1; i < m_ColorAttachments.Length; ++i)
                 m_ColorAttachments[i] = 0;
+        }
+
+        internal void ConfigureTarget(RenderTargetIdentifier colorAttachment, GraphicsFormat format, int width = -1, int height = -1, int sampleCount = -1, bool depth = false)
+        {
+            ConfigureTarget(colorAttachment);
+            for (int i = 1; i < m_ColorAttachments.Length; ++i)
+                renderTargetFormat[i] = GraphicsFormat.None;
+
+            if (depth == true && !GraphicsFormatUtility.IsDepthFormat(format))
+            {
+                throw new ArgumentException("When configuring a depth only target the passed in format must be a depth format.");
+            }
+
+            renderTargetWidth = width;
+            renderTargetHeight = height;
+            renderTargetSampleCount = sampleCount;
+            depthOnly = depth;
+            renderTargetFormat[0] = format;
         }
 
         /// <summary>

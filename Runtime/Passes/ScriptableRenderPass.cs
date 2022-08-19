@@ -335,6 +335,13 @@ namespace UnityEngine.Rendering.Universal
             m_DepthAttachment = depthAttachment;
         }
 
+        internal void ConfigureTarget(RenderTargetIdentifier[] colorAttachments, RenderTargetIdentifier depthAttachment, GraphicsFormat[] formats)
+        {
+            ConfigureTarget(colorAttachments, depthAttachment);
+            for (int i = 0; i < formats.Length; ++i)
+                renderTargetFormat[i] = formats[i];
+        }
+
         /// <summary>
         /// Configures render targets for this render pass. Call this instead of CommandBuffer.SetRenderTarget.
         /// This method should be called inside Configure.

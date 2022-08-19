@@ -877,9 +877,24 @@ namespace UnityEngine.Rendering.Universal
                         var trimmedAttachments = m_TrimmedColorAttachmentCopies[rtCount];
                         for (int i = 0; i < rtCount; ++i)
                             trimmedAttachments[i] = renderPass.colorAttachments[i];
-                        SetRenderTarget(cmd, trimmedAttachments, renderPass.depthAttachment, finalClearFlag, renderPass.clearColor);
 
-                    #if ENABLE_VR && ENABLE_XR_MODULE
+                        if (!IsRenderPassEnabled(renderPass) || !cameraData.isRenderPassSupportedCamera)
+                        {
+                            RenderTargetIdentifier depthAttachment = m_CameraDepthTarget;
+
+                            if (renderPass.overrideCameraTarget)
+                            {
+                                depthAttachment = renderPass.depthAttachment;
+                            }
+                            else
+                            {
+                                m_FirstTimeCameraDepthTargetIsBound = false;
+                            }
+
+                            SetRenderTarget(cmd, trimmedAttachments, depthAttachment, finalClearFlag, renderPass.clearColor);
+                        }
+
+#if ENABLE_VR && ENABLE_XR_MODULE
                         if (cameraData.xr.enabled)
                         {
                             // SetRenderTarget might alter the internal device state(winding order).

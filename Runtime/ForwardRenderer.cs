@@ -465,7 +465,8 @@ namespace UnityEngine.Rendering.Universal
             bool requiresDepthCopyPass = !requiresDepthPrepass
                                          && renderingData.cameraData.requiresDepthTexture
                                          && createDepthTexture
-                                         && this.actualRenderingMode != RenderingMode.Deferred;
+                                         // && this.actualRenderingMode != RenderingMode.Deferred
+                                         ;
             if (requiresDepthCopyPass)
             {
                 m_CopyDepthPass.Setup(m_ActiveCameraDepthAttachment, m_DepthTexture);
@@ -490,6 +491,9 @@ namespace UnityEngine.Rendering.Universal
                 m_CopyColorPass.Setup(m_ActiveCameraColorAttachment.Identifier(), m_OpaqueColor, downsamplingMethod);
                 EnqueuePass(m_CopyColorPass);
             }
+
+            bool lastCameraInTheStack = cameraData.resolveFinalTarget;
+
 #if ADAPTIVE_PERFORMANCE_2_1_0_OR_NEWER
             if (needTransparencyPass)
 #endif
@@ -499,11 +503,20 @@ namespace UnityEngine.Rendering.Universal
                     EnqueuePass(m_TransparentSettingsPass);
                 }
 
+                // if this is not lastCameraInTheStack we still need to Store, since the MSAA buffer might be needed by the Overlay cameras
+                RenderBufferStoreAction transparentPassColorStoreAction = cameraTargetDescriptor.msaaSamples > 1 && lastCameraInTheStack ? RenderBufferStoreAction.Resolve : RenderBufferStoreAction.Store;
+                RenderBufferStoreAction transparentPassDepthStoreAction = RenderBufferStoreAction.DontCare;
+
+                // If CopyDepthPass pass event is scheduled on or after AfterRenderingTransparent, we will need to store the depth buffer or resolve (store for now until latest trunk has depth resolve support) it for MSAA case
+                if (requiresDepthCopyPass && m_CopyDepthPass.renderPassEvent >= RenderPassEvent.AfterRenderingTransparents)
+                    transparentPassDepthStoreAction = RenderBufferStoreAction.Store;
+
+                m_RenderTransparentForwardPass.ConfigureColorStoreAction(transparentPassColorStoreAction);
+                m_RenderTransparentForwardPass.ConfigureDepthStoreAction(transparentPassDepthStoreAction);
                 EnqueuePass(m_RenderTransparentForwardPass);
             }
             EnqueuePass(m_OnRenderObjectCallbackPass);
 
-            bool lastCameraInTheStack = cameraData.resolveFinalTarget;
             bool hasCaptureActions = renderingData.cameraData.captureActions != null && lastCameraInTheStack;
             bool applyFinalPostProcessing = anyPostProcessing && lastCameraInTheStack &&
                                      renderingData.cameraData.antialiasing == AntialiasingMode.FastApproximateAntialiasing;

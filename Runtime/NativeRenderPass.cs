@@ -276,10 +276,12 @@ namespace UnityEngine.Rendering.Universal
 
         bool IsDepthOnlyRenderTexture(RenderTexture t)
         {
-            if (t.graphicsFormat == GraphicsFormat.None // ||
+            if (t.graphicsFormat == GraphicsFormat.None
 #pragma warning disable 0618 // Disable deprecation warnings. If you get here once these formats are really gone, the code in this #pragma can simply be removed
                 // t.graphicsFormat == GraphicsFormat.DepthAuto ||
+                || (int)t.graphicsFormat == 142
                 // t.graphicsFormat == GraphicsFormat.ShadowAuto
+                || (int)t.graphicsFormat == 143
 #pragma warning restore 0618
             )
             {

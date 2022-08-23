@@ -7,7 +7,7 @@
 // inspired from [builtin_shaders]/CGIncludes/UnityGBuffer.cginc
 
 // Non-static meshes with real-time lighting need to write shadow mask, which in that case stores per-object occlusion probe values.
-#if !defined(LIGHTMAP_ON) && defined(_MIXED_LIGHTING_SUBTRACTIVE)
+#if defined(SHADOWS_SHADOWMASK) || defined(_DEFERRED_SUBTRACTIVE_LIGHTING) || (!defined(LIGHTMAP_ON) && defined(LIGHTMAP_SHADOW_MIXING))
 #define USE_SHADOWMASK 1
 #else
 #define USE_SHADOWMASK 0

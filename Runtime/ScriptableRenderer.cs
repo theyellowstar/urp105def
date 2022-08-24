@@ -348,6 +348,14 @@ namespace UnityEngine.Rendering.Universal
         static RenderTargetIdentifier[] m_ActiveColorAttachments = new RenderTargetIdentifier[]{0, 0, 0, 0, 0, 0, 0, 0 };
         static RenderTargetIdentifier m_ActiveDepthAttachment;
 
+        private static RenderBufferStoreAction[] m_ActiveColorStoreActions = new RenderBufferStoreAction[]
+        {
+            RenderBufferStoreAction.Store, RenderBufferStoreAction.Store, RenderBufferStoreAction.Store, RenderBufferStoreAction.Store,
+            RenderBufferStoreAction.Store, RenderBufferStoreAction.Store, RenderBufferStoreAction.Store, RenderBufferStoreAction.Store
+        };
+
+        private static RenderBufferStoreAction m_ActiveDepthStoreAction = RenderBufferStoreAction.Store;
+
         // CommandBuffer.SetRenderTarget(RenderTargetIdentifier[] colors, RenderTargetIdentifier depth, int mipLevel, CubemapFace cubemapFace, int depthSlice);
         // called from CoreUtils.SetRenderTarget will issue a warning assert from native c++ side if "colors" array contains some invalid RTIDs.
         // To avoid that warning assert we trim the RenderTargetIdentifier[] arrays we pass to CoreUtils.SetRenderTarget.
@@ -794,7 +802,6 @@ namespace UnityEngine.Rendering.Universal
                 // In the MRT path we assume that all color attachments are REAL color attachments,
                 // and that the depth attachment is a REAL depth attachment too.
 
-
                 // Determine what attachments need to be cleared. ----------------
 
                 bool needCustomCameraColorClear = false;
@@ -836,7 +843,7 @@ namespace UnityEngine.Rendering.Universal
                 {
                     // Clear camera color render-target separately from the rest of the render-targets.
 
-                    if ((cameraClearFlag & ClearFlag.Color) != 0)
+                    if ((cameraClearFlag & ClearFlag.Color) != 0 && (!IsRenderPassEnabled(renderPass) || !cameraData.isRenderPassSupportedCamera))
                         SetRenderTarget(cmd, renderPass.colorAttachments[cameraColorTargetIndex], renderPass.depthAttachment, ClearFlag.Color, CoreUtils.ConvertSRGBToActiveColorSpace(camera.backgroundColor));
 
                     if ((renderPass.clearFlag & ClearFlag.Color) != 0)
@@ -855,14 +862,15 @@ namespace UnityEngine.Rendering.Universal
 
                         if (writeIndex != otherTargetsCount)
                             Debug.LogError("writeIndex and otherTargetsCount values differed. writeIndex:" + writeIndex + " otherTargetsCount:" + otherTargetsCount);
-                        SetRenderTarget(cmd, nonCameraAttachments, m_CameraDepthTarget, ClearFlag.Color, renderPass.clearColor);
+                        if (!IsRenderPassEnabled(renderPass) || !cameraData.isRenderPassSupportedCamera)
+                            SetRenderTarget(cmd, nonCameraAttachments, m_CameraDepthTarget, ClearFlag.Color, renderPass.clearColor);
                     }
                 }
 
                 // Bind all attachments, clear color only if there was no custom behaviour for cameraColorTarget, clear depth as needed.
                 ClearFlag finalClearFlag = ClearFlag.None;
                 finalClearFlag |= needCustomCameraDepthClear ? (cameraClearFlag & ClearFlag.Depth) : (renderPass.clearFlag & ClearFlag.Depth);
-                finalClearFlag |= needCustomCameraColorClear ? 0 : (renderPass.clearFlag & ClearFlag.Color);
+                finalClearFlag |= needCustomCameraColorClear ? (IsRenderPassEnabled(renderPass) ? (cameraClearFlag & ClearFlag.Color) : 0) : (renderPass.clearFlag & ClearFlag.Color);
 
                 if (IsRenderPassEnabled(renderPass) && cameraData.isRenderPassSupportedCamera)
                     SetNativeRenderPassMRTAttachmentList(renderPass, ref cameraData, needCustomCameraColorClear, finalClearFlag);
@@ -903,7 +911,7 @@ namespace UnityEngine.Rendering.Universal
                             bool isRenderToBackBufferTarget = (xrTargetIndex != -1) && !cameraData.xr.renderTargetIsRenderTexture;
                             cameraData.xr.UpdateGPUViewAndProjectionMatrices(cmd, ref cameraData, !isRenderToBackBufferTarget);
                         }
-                    #endif
+#endif
                     }
                 }
             }
@@ -916,11 +924,12 @@ namespace UnityEngine.Rendering.Universal
 
                 // When render pass doesn't call ConfigureTarget we assume it's expected to render to camera target
                 // which might be backbuffer or the framebuffer render textures.
+
                 if (!renderPass.overrideCameraTarget)
                 {
                     // Default render pass attachment for passes before main rendering is current active
                     // early return so we don't change current render target setup.
-                    if (renderPass.renderPassEvent < RenderPassEvent.BeforeRenderingOpaques)
+                    if (renderPass.renderPassEvent < RenderPassEvent.BeforeRenderingPrepasses)
                         return;
 
                     // Otherwise default is the pipeline camera target.
@@ -964,16 +973,31 @@ namespace UnityEngine.Rendering.Universal
                 else
                     finalClearFlag |= (renderPass.clearFlag & ClearFlag.Depth);
 
+#if FALSE && UNITY_EDITOR
+                if (CoreUtils.IsSceneFilteringEnabled() && camera.sceneViewFilterMode == Camera.SceneViewFilterMode.ShowFiltered)
+                {
+                    finalClearColor.a = 0;
+                    finalClearFlag &= ~ClearFlag.Depth;
+                }
+#endif
+
+                // If the debug-handler needs to clear the screen, update "finalClearColor" accordingly...
+                // if ((DebugHandler != null) && DebugHandler.IsActiveForCamera(ref cameraData))
+                // {
+                //     DebugHandler.TryGetScreenClearColor(ref finalClearColor);
+                // }
+
                 if (IsRenderPassEnabled(renderPass) && cameraData.isRenderPassSupportedCamera)
                 {
                     SetNativeRenderPassAttachmentList(renderPass, ref cameraData, passColorAttachment, passDepthAttachment, finalClearFlag, finalClearColor);
                 }
-				else
-				{
+                else
+                {
                     // Only setup render target if current render pass attachments are different from the active ones
-                    if (passColorAttachment != m_ActiveColorAttachments[0] || passDepthAttachment != m_ActiveDepthAttachment || finalClearFlag != ClearFlag.None)
+                    if (passColorAttachment != m_ActiveColorAttachments[0] || passDepthAttachment != m_ActiveDepthAttachment || finalClearFlag != ClearFlag.None ||
+                        renderPass.colorStoreActions[0] != m_ActiveColorStoreActions[0] || renderPass.depthStoreAction != m_ActiveDepthStoreAction)
                     {
-                        SetRenderTarget(cmd, passColorAttachment, passDepthAttachment, finalClearFlag, finalClearColor);
+                        SetRenderTarget(cmd, passColorAttachment, passDepthAttachment, finalClearFlag, finalClearColor, renderPass.colorStoreActions[0], renderPass.depthStoreAction);
 
 #if ENABLE_VR && ENABLE_XR_MODULE
                         if (cameraData.xr.enabled)
@@ -1021,6 +1045,11 @@ namespace UnityEngine.Rendering.Universal
             for (int i = 1; i < m_ActiveColorAttachments.Length; ++i)
                 m_ActiveColorAttachments[i] = 0;
 
+            m_ActiveColorStoreActions[0] = RenderBufferStoreAction.Store;
+            m_ActiveDepthStoreAction = RenderBufferStoreAction.Store;
+            for (int i = 1; i < m_ActiveColorStoreActions.Length; ++i)
+                m_ActiveColorStoreActions[i] = RenderBufferStoreAction.Store;
+
             m_ActiveDepthAttachment = depthAttachment;
 
             RenderBufferLoadAction colorLoadAction = ((uint)clearFlag & (uint)ClearFlag.Color) != 0 ?
@@ -1031,6 +1060,39 @@ namespace UnityEngine.Rendering.Universal
 
             SetRenderTarget(cmd, colorAttachment, colorLoadAction, RenderBufferStoreAction.Store,
                 depthAttachment, depthLoadAction, RenderBufferStoreAction.Store, clearFlag, clearColor);
+        }
+
+        internal static void SetRenderTarget(CommandBuffer cmd, RenderTargetIdentifier colorAttachment, RenderTargetIdentifier depthAttachment, ClearFlag clearFlag, Color clearColor, RenderBufferStoreAction colorStoreAction, RenderBufferStoreAction depthStoreAction)
+        {
+            m_ActiveColorAttachments[0] = colorAttachment;
+            for (int i = 1; i < m_ActiveColorAttachments.Length; ++i)
+                m_ActiveColorAttachments[i] = 0;
+
+            m_ActiveColorStoreActions[0] = colorStoreAction;
+            m_ActiveDepthStoreAction = depthStoreAction;
+            for (int i = 1; i < m_ActiveColorStoreActions.Length; ++i)
+                m_ActiveColorStoreActions[i] = RenderBufferStoreAction.Store;
+
+            m_ActiveDepthAttachment = depthAttachment;
+
+            RenderBufferLoadAction colorLoadAction = ((uint)clearFlag & (uint)ClearFlag.Color) != 0 ?
+                RenderBufferLoadAction.DontCare : RenderBufferLoadAction.Load;
+
+            RenderBufferLoadAction depthLoadAction = ((uint)clearFlag & (uint)ClearFlag.Depth) != 0 ?
+                RenderBufferLoadAction.DontCare : RenderBufferLoadAction.Load;
+
+            // if we shouldn't use optimized store actions then fall back to the conservative safe (un-optimal!) route and just store everything
+            if (!m_UseOptimizedStoreActions)
+            {
+                if (colorStoreAction != RenderBufferStoreAction.StoreAndResolve)
+                    colorStoreAction = RenderBufferStoreAction.Store;
+                if (depthStoreAction != RenderBufferStoreAction.StoreAndResolve)
+                    depthStoreAction = RenderBufferStoreAction.Store;
+            }
+
+
+            SetRenderTarget(cmd, colorAttachment, colorLoadAction, colorStoreAction,
+                depthAttachment, depthLoadAction, depthStoreAction, clearFlag, clearColor);
         }
 
         static void SetRenderTarget(

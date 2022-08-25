@@ -843,17 +843,8 @@ namespace UnityEngine.Rendering.Universal
                 {
                     // Clear camera color render-target separately from the rest of the render-targets.
 
-                    if ((cameraClearFlag & ClearFlag.Color) != 0)
-					{
-                        if (!IsRenderPassEnabled(renderPass) || !cameraData.isRenderPassSupportedCamera)
-						{
-                            SetRenderTarget(cmd, renderPass.colorAttachments[cameraColorTargetIndex], renderPass.depthAttachment, ClearFlag.Color, CoreUtils.ConvertSRGBToActiveColorSpace(camera.backgroundColor));
-                        }
-                        else
-						{
-                            cmd.SetViewport(cameraData.pixelRect);
-                        }
-					}
+                    if ((cameraClearFlag & ClearFlag.Color) != 0 && (!IsRenderPassEnabled(renderPass) || !cameraData.isRenderPassSupportedCamera))
+                        SetRenderTarget(cmd, renderPass.colorAttachments[cameraColorTargetIndex], renderPass.depthAttachment, ClearFlag.Color, CoreUtils.ConvertSRGBToActiveColorSpace(camera.backgroundColor));
 
                     if ((renderPass.clearFlag & ClearFlag.Color) != 0)
                     {
@@ -873,10 +864,6 @@ namespace UnityEngine.Rendering.Universal
                             Debug.LogError("writeIndex and otherTargetsCount values differed. writeIndex:" + writeIndex + " otherTargetsCount:" + otherTargetsCount);
                         if (!IsRenderPassEnabled(renderPass) || !cameraData.isRenderPassSupportedCamera)
                             SetRenderTarget(cmd, nonCameraAttachments, m_CameraDepthTarget, ClearFlag.Color, renderPass.clearColor);
-						else
-						{
-                            cmd.SetViewport(cameraData.pixelRect);
-                        }
                     }
                 }
 
@@ -913,10 +900,6 @@ namespace UnityEngine.Rendering.Universal
                             }
 
                             SetRenderTarget(cmd, trimmedAttachments, depthAttachment, finalClearFlag, renderPass.clearColor);
-                        }
-						else
-						{
-                            cmd.SetViewport(cameraData.pixelRect);
                         }
 
 #if ENABLE_VR && ENABLE_XR_MODULE
@@ -1007,7 +990,6 @@ namespace UnityEngine.Rendering.Universal
                 if (IsRenderPassEnabled(renderPass) && cameraData.isRenderPassSupportedCamera)
                 {
                     SetNativeRenderPassAttachmentList(renderPass, ref cameraData, passColorAttachment, passDepthAttachment, finalClearFlag, finalClearColor);
-                    cmd.SetViewport(cameraData.pixelRect);
                 }
                 else
                 {

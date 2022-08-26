@@ -101,11 +101,13 @@ namespace UnityEngine.Rendering.Universal.Internal
                 if (m_DeferredLights.IsOverlay)
                     m_DeferredLights.ClearStencilPartial(gbufferCommands);
 
+                ref CameraData cameraData = ref renderingData.cameraData;
+                Camera camera = cameraData.camera;
+
+                gbufferCommands.SetViewport(cameraData.pixelRect);
                 context.ExecuteCommandBuffer(gbufferCommands);
                 gbufferCommands.Clear();
 
-                ref CameraData cameraData = ref renderingData.cameraData;
-                Camera camera = cameraData.camera;
                 ShaderTagId lightModeTag = s_ShaderTagUniversalGBuffer;
                 DrawingSettings drawingSettings = CreateDrawingSettings(lightModeTag, ref renderingData, renderingData.cameraData.defaultOpaqueSortFlags);
                 ShaderTagId universalMaterialTypeTag = s_ShaderTagUniversalMaterialType;

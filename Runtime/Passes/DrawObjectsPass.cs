@@ -78,6 +78,9 @@ namespace UnityEngine.Rendering.Universal.Internal
                     : new Vector4(flipSign, 0.0f, 1.0f, 1.0f);
                 cmd.SetGlobalVector(ShaderPropertyId.scaleBiasRt, scaleBias);
 
+                ref CameraData cameraData = ref renderingData.cameraData;
+                cmd.SetViewport(cameraData.pixelRect);
+
                 context.ExecuteCommandBuffer(cmd);
                 cmd.Clear();
 

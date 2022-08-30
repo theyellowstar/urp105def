@@ -104,7 +104,8 @@ namespace UnityEngine.Rendering.Universal.Internal
                 ref CameraData cameraData = ref renderingData.cameraData;
                 Camera camera = cameraData.camera;
 
-                gbufferCommands.SetViewport(cameraData.pixelRect);
+                gbufferCommands.SetViewport(InitializeRenderPassDescriptorRect(ref cameraData));
+
                 context.ExecuteCommandBuffer(gbufferCommands);
                 gbufferCommands.Clear();
 

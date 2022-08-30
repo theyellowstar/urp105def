@@ -532,5 +532,13 @@ namespace UnityEngine.Rendering.Universal
         {
             return lhs.renderPassEvent > rhs.renderPassEvent;
         }
+
+        protected Rect InitializeRenderPassDescriptorRect(ref CameraData cameraData)
+		{
+            int w = (renderTargetWidth != -1) ? renderTargetWidth : cameraData.cameraTargetDescriptor.width;
+            int h = (renderTargetHeight != -1) ? renderTargetHeight : cameraData.cameraTargetDescriptor.height;
+
+            return new Rect(0, 0, w, h);
+        }
     }
 }

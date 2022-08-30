@@ -79,7 +79,7 @@ namespace UnityEngine.Rendering.Universal.Internal
                 cmd.SetGlobalVector(ShaderPropertyId.scaleBiasRt, scaleBias);
 
                 ref CameraData cameraData = ref renderingData.cameraData;
-                cmd.SetViewport(cameraData.pixelRect);
+                cmd.SetViewport(InitializeRenderPassDescriptorRect(ref cameraData));
 
                 context.ExecuteCommandBuffer(cmd);
                 cmd.Clear();

@@ -114,7 +114,7 @@ FragmentOutput SurfaceDataToGbuffer(SurfaceData surfaceData, InputData inputData
     #if _RENDER_PASS_ENABLED
     output.GBuffer4 = inputData.positionCS.z;
     #endif
-    #if OUTPUT_SHADOWMASK
+    #if USE_SHADOWMASK
     output.GBUFFER_SHADOWMASK = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
     #endif
 
@@ -200,7 +200,7 @@ FragmentOutput BRDFDataToGbuffer(BRDFData brdfData, InputData inputData, half sm
     #if _RENDER_PASS_ENABLED
     output.GBuffer4 = inputData.positionCS.z;
     #endif
-    #if OUTPUT_SHADOWMASK
+    #if USE_SHADOWMASK
     output.GBUFFER_SHADOWMASK = inputData.shadowMask; // will have unity_ProbesOcclusion value if subtractive lighting is used (baked)
     #endif
 
